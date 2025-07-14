@@ -9,8 +9,9 @@ import (
 )
 
 type Config struct {
-	Server ServerConfig
-	DB     DBConfig
+	Server   ServerConfig
+	DB       DBConfig
+	Database DatabaseConfig
 }
 
 type ServerConfig struct {
@@ -24,6 +25,10 @@ type DBConfig struct {
 	User     string
 	Password string
 	Name     string
+}
+
+type DatabaseConfig struct {
+	DataDir string
 }
 
 func Load() (*Config, error) {
@@ -40,6 +45,9 @@ func Load() (*Config, error) {
 			User:     getEnv("DB_USER", "postgres"),
 			Password: getEnv("DB_PASSWORD", "password"),
 			Name:     getEnv("DB_NAME", "socgo"),
+		},
+		Database: DatabaseConfig{
+			DataDir: getEnv("DATABASE_DATA_DIR", "./data"),
 		},
 	}
 	
