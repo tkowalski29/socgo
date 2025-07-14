@@ -57,5 +57,9 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
-	w.Write([]byte(`<div class="p-2 bg-green-100 text-green-800 rounded">✓ Server is healthy</div>`))
+	if _, err := w.Write([]byte(`<div class="p-2 bg-green-100 text-green-800 rounded">✓ Server is healthy</div>`)); err != nil {
+		log.Printf("Error writing response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
