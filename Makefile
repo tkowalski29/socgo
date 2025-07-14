@@ -1,7 +1,7 @@
 .PHONY: run test lint build clean install-tools
 
 run:
-	go run ./cmd/socgo
+	go run ./cmd
 
 test:
 	go test ./...
@@ -10,7 +10,7 @@ lint:
 	golangci-lint run
 
 build:
-	go build -o bin/socgo ./cmd/socgo
+	go build -o bin/socgo ./cmd
 
 clean:
 	rm -rf bin/

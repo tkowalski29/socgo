@@ -4,14 +4,26 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/tkowalski/socgo/internal/config"
+	"github.com/tkowalski/socgo/internal/di"
 	"github.com/tkowalski/socgo/internal/server"
 )
 
 func main() {
-	srv := server.New()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal("Failed to load config:", err)
+	}
+
+	container := di.NewContainer()
+	container.Register("config", cfg)
+
+	srv := server.New(container)
+	container.Register("server", srv)
 	
-	log.Println("Starting server on :8080")
-	if err := http.ListenAndServe(":8080", srv); err != nil {
+	addr := cfg.GetServerAddr()
+	log.Printf("Starting server on %s", addr)
+	if err := http.ListenAndServe(addr, srv); err != nil {
 		log.Fatal(err)
 	}
 }
