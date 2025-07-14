@@ -3,19 +3,30 @@ package server
 import (
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"github.com/tkowalski/socgo/internal/di"
 	"github.com/tkowalski/socgo/internal/handlers"
+	"github.com/tkowalski/socgo/internal/oauth"
 )
 
 func New(container *di.Container) http.Handler {
-	mux := http.NewServeMux()
+	r := mux.NewRouter()
 	
 	// Static files
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	
+	// OAuth service and handler
+	oauthService := oauth.NewService(container.GetDBManager())
+	oauthHandler := oauth.NewHandler(oauthService)
 	
 	// Routes
-	mux.HandleFunc("/", handlers.HomeHandler)
-	mux.HandleFunc("/health", handlers.HealthHandler)
+	r.HandleFunc("/", handlers.HomeHandler)
+	r.HandleFunc("/health", handlers.HealthHandler)
 	
-	return mux
+	// OAuth routes
+	r.HandleFunc("/connect/{provider}", oauthHandler.HandleConnect).Methods("GET")
+	r.HandleFunc("/oauth/callback/{provider}", oauthHandler.HandleCallback).Methods("GET")
+	r.HandleFunc("/providers", oauthHandler.HandleProviders).Methods("GET")
+	
+	return r
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+
+	"github.com/tkowalski/socgo/internal/database"
 )
 
 type Container struct {
@@ -69,4 +71,18 @@ func (c *Container) List() []string {
 		keys = append(keys, key)
 	}
 	return keys
+}
+
+func (c *Container) GetDBManager() *database.Manager {
+	service, err := c.Get("database")
+	if err != nil {
+		panic(err)
+	}
+	
+	manager, ok := service.(*database.Manager)
+	if !ok {
+		panic("database service is not a *database.Manager")
+	}
+	
+	return manager
 }
