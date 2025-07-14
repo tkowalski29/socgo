@@ -1,1 +1,1 @@
-/Users/tkowalski/Library/CloudStorage/GoogleDrive-tkowalski@iseno.net/Mój dysk/CodeGen/SocGo/SG1/sessions/session-1/CLAUDE_SG1_history.md
+/Users/tkowalski/Library/CloudStorage/GoogleDrive-tkowalski@iseno.net/Mój dysk/CodeGen/SocGo/SG1/sessions/session-2/CLAUDE_SG1_history.md
