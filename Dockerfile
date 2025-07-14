@@ -9,7 +9,7 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o bin/socgo ./cmd/socgo
+RUN go build -o bin/socgo ./cmd/main.go
 
 FROM alpine:latest
 
