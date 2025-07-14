@@ -11,6 +11,7 @@
       "Bash(go test:*)",
       "Bash(go fmt:*)",
       "Bash(gofmt:*)",
+      "Bash(golangci-lint run:*)",
       "Bash(templ generate:*)",
       "Bash(./socgo)",
       "",
