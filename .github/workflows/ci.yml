@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Run tests
+      run: go test ./...
+    
+    - name: Run linter
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+    
+    - name: Build
+      run: go build -v ./...
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build Docker image
+      run: docker build -t socgo:latest .
+    
+    - name: Test Docker image
+      run: |
+        docker run -d -p 8080:8080 --name socgo-test socgo:latest
+        sleep 5
+        docker logs socgo-test
+        docker stop socgo-test
+        docker rm socgo-test

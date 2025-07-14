@@ -1,0 +1,10 @@
+# LLM
+CLAUDE_*
+
+# History
+.history/
+.DS_Store
+
+# Runner
+socgo
+main
