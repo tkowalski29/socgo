@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/tkowalski/socgo/internal/config"
+	"github.com/tkowalski/socgo/internal/database"
 	"github.com/tkowalski/socgo/internal/di"
 	"github.com/tkowalski/socgo/internal/server"
 )
@@ -17,6 +18,9 @@ func main() {
 
 	container := di.NewContainer()
 	container.Register("config", cfg)
+
+	dbManager := database.NewManager(cfg.Database.DataDir)
+	container.Register("database", dbManager)
 
 	srv := server.New(container)
 	container.Register("server", srv)
