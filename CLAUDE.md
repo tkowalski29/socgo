@@ -1,0 +1,1 @@
+Wykonuj instrukcje jakie dostaniesz w pliku.
