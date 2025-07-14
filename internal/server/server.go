@@ -3,10 +3,11 @@ package server
 import (
 	"net/http"
 
+	"github.com/tkowalski/socgo/internal/di"
 	"github.com/tkowalski/socgo/internal/handlers"
 )
 
-func New() http.Handler {
+func New(container *di.Container) http.Handler {
 	mux := http.NewServeMux()
 	
 	// Static files
