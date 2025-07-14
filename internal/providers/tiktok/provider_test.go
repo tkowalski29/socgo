@@ -94,8 +94,7 @@ func TestTikTokProvider_Publish(t *testing.T) {
 			provider := NewTikTokProvider(config, mockClient)
 
 			// Test Publish
-			ctx := context.Background()
-			postID, err := provider.Publish(ctx, tt.content)
+			postID, err := provider.Publish(context.Background(), tt.content)
 
 			// Verify results
 			if tt.expectError {
@@ -193,8 +192,7 @@ func TestTikTokProvider_GetStatus(t *testing.T) {
 			provider := NewTikTokProvider(config, mockClient)
 
 			// Test GetStatus
-			ctx := context.Background()
-			status, err := provider.GetStatus(ctx, tt.postID)
+			status, err := provider.GetStatus(context.Background(), tt.postID)
 
 			// Verify results
 			if tt.expectError {
@@ -281,8 +279,7 @@ func TestTikTokProvider_RefreshToken(t *testing.T) {
 			provider := NewTikTokProvider(config, mockClient)
 
 			// Test RefreshToken
-			ctx := context.Background()
-			err := provider.RefreshToken(ctx)
+			err := provider.RefreshToken(context.Background())
 
 			// Verify results
 			if tt.expectError {

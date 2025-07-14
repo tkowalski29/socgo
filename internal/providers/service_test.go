@@ -65,18 +65,18 @@ func createTestProvider(t *testing.T, db *gorm.DB, userID, providerName string) 
 func TestProviderService_PublishContent(t *testing.T) {
 	// Setup test database
 	db := setupTestDB(t)
-	
+
 	// Create mock database manager
 	dbManager := &database.Manager{}
 	// We'll need to mock the GetDB method to return our test db
 	// For now, let's assume this works (implementation depends on actual database.Manager)
-	
+
 	// Create mock OAuth service
 	oauthService := &oauth.Service{}
-	
+
 	// Create provider service
 	service := NewProviderService(dbManager, oauthService)
-	
+
 	// Create test provider
 	userID := "test_user"
 	providerName := "tiktok"
@@ -108,14 +108,13 @@ func TestProviderService_PublishContent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-			
+
 			// Note: This test would need proper mocking of the database manager
 			// For now, we'll skip the actual test execution
 			t.Skip("Skipping test - requires database manager mocking")
-			
-			postID, err := service.PublishContent(ctx, tt.userID, tt.provider, tt.content)
-			
+
+			postID, err := service.PublishContent(context.Background(), tt.userID, tt.provider, tt.content)
+
 			if tt.expectError {
 				if err == nil {
 					t.Error("Expected error, got nil")
@@ -135,32 +134,32 @@ func TestProviderService_PublishContent(t *testing.T) {
 func TestProviderService_GetSupportedProviders(t *testing.T) {
 	// Create provider service
 	service := NewProviderService(nil, nil)
-	
+
 	// Get supported providers
 	providers := service.GetSupportedProviders()
-	
+
 	// Verify we have providers (empty at start since registry is empty)
 	if len(providers) != 0 {
 		t.Errorf("Expected 0 providers initially, got %d", len(providers))
 	}
-	
+
 	// Test with registered providers
 	service.registry.Register(ProviderTypeTikTok, nil)
 	service.registry.Register(ProviderTypeInstagram, nil)
 	service.registry.Register(ProviderTypeFacebook, nil)
-	
+
 	providers = service.GetSupportedProviders()
-	
+
 	if len(providers) != 3 {
 		t.Errorf("Expected 3 providers, got %d", len(providers))
 	}
-	
+
 	// Verify provider types
 	providerMap := make(map[string]bool)
 	for _, provider := range providers {
 		providerMap[provider] = true
 	}
-	
+
 	expectedProviders := []string{"tiktok", "instagram", "facebook"}
 	for _, expected := range expectedProviders {
 		if !providerMap[expected] {
@@ -172,18 +171,18 @@ func TestProviderService_GetSupportedProviders(t *testing.T) {
 func TestProviderService_IsProviderConfigured(t *testing.T) {
 	// This test would need proper database manager mocking
 	t.Skip("Skipping test - requires database manager mocking")
-	
+
 	// Setup test database
 	db := setupTestDB(t)
-	
+
 	// Create test provider
 	userID := "test_user"
 	providerName := "tiktok"
 	createTestProvider(t, db, userID, providerName)
-	
+
 	// Create provider service
 	service := NewProviderService(nil, nil)
-	
+
 	// Test configured provider
 	configured, err := service.IsProviderConfigured(userID, providerName)
 	if err != nil {
@@ -192,7 +191,7 @@ func TestProviderService_IsProviderConfigured(t *testing.T) {
 	if !configured {
 		t.Error("Expected provider to be configured")
 	}
-	
+
 	// Test non-configured provider
 	configured, err = service.IsProviderConfigured(userID, "nonexistent")
 	if err != nil {
