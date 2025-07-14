@@ -127,7 +127,7 @@ func (s *ProviderService) GetSupportedProviders() []string {
 }
 
 // IsProviderConfigured checks if a provider is configured for a user
-func (s *ProviderService) IsProviderConfigured(ctx context.Context, userID string, providerName string) (bool, error) {
+func (s *ProviderService) IsProviderConfigured(userID string, providerName string) (bool, error) {
 	db, err := s.dbManager.GetDB(userID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get database: %w", err)

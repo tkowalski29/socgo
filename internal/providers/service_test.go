@@ -184,10 +184,8 @@ func TestProviderService_IsProviderConfigured(t *testing.T) {
 	// Create provider service
 	service := NewProviderService(nil, nil)
 	
-	ctx := context.Background()
-	
 	// Test configured provider
-	configured, err := service.IsProviderConfigured(ctx, userID, providerName)
+	configured, err := service.IsProviderConfigured(userID, providerName)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -196,7 +194,7 @@ func TestProviderService_IsProviderConfigured(t *testing.T) {
 	}
 	
 	// Test non-configured provider
-	configured, err = service.IsProviderConfigured(ctx, userID, "nonexistent")
+	configured, err = service.IsProviderConfigured(userID, "nonexistent")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
