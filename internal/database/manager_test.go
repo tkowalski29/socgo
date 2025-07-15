@@ -76,7 +76,7 @@ func TestDatabaseTables_CreatedSuccessfully(t *testing.T) {
 		t.Fatalf("GetDB failed: %v", err)
 	}
 
-	tables := []string{"posts", "providers", "scheduled_jobs"}
+	tables := []string{"posts", "providers", "scheduled_jobs", "api_tokens"}
 
 	for _, table := range tables {
 		if !db.Migrator().HasTable(table) {
