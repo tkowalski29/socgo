@@ -33,6 +33,7 @@ func New(container *di.Container) http.Handler {
 	r.HandleFunc("/connect/{provider}", oauthHandler.HandleConnect).Methods("GET")
 	r.HandleFunc("/oauth/callback/{provider}", oauthHandler.HandleCallback).Methods("GET")
 	r.HandleFunc("/providers", oauthHandler.HandleProviders).Methods("GET")
+	r.HandleFunc("/providers/{id}", oauthHandler.HandleDisconnect).Methods("DELETE")
 
 	return r
 }
