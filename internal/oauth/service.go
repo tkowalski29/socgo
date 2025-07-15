@@ -60,7 +60,7 @@ func (s *Service) HandleCallback(userID string, providerType ProviderType, code 
 
 func (s *Service) exchangeCodeForToken(providerType ProviderType, code string) (*ProviderConfig, error) {
 	metadata := SupportedProviders[providerType]
-	
+
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
 	data.Set("client_id", s.getClientID(providerType))
@@ -103,14 +103,14 @@ func (s *Service) exchangeCodeForToken(providerType ProviderType, code string) (
 
 func (s *Service) getUserInfo(providerType ProviderType, accessToken string) (*UserInfo, error) {
 	metadata := SupportedProviders[providerType]
-	
+
 	req, err := http.NewRequest("GET", metadata.UserInfoURL, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	
+
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -151,7 +151,7 @@ func (s *Service) saveProviderConfig(userID string, providerType ProviderType, c
 
 	var existingProvider database.Provider
 	result := db.Where("user_id = ? AND type = ?", userID, string(providerType)).First(&existingProvider)
-	
+
 	if result.Error == nil {
 		provider.ID = existingProvider.ID
 		return db.Save(provider).Error

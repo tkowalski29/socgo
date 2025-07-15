@@ -33,7 +33,7 @@ type DatabaseConfig struct {
 
 func Load() (*Config, error) {
 	loadEnvFile()
-	
+
 	config := &Config{
 		Server: ServerConfig{
 			Port: getEnv("SERVER_PORT", "8080"),
@@ -50,7 +50,7 @@ func Load() (*Config, error) {
 			DataDir: getEnv("DATABASE_DATA_DIR", "./data"),
 		},
 	}
-	
+
 	return config, nil
 }
 
@@ -68,12 +68,12 @@ func loadEnvFile() {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		
+
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) == 2 {
 			key := strings.TrimSpace(parts[0])
 			value := strings.TrimSpace(parts[1])
-			
+
 			if os.Getenv(key) == "" {
 				os.Setenv(key, value)
 			}

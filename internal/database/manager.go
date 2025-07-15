@@ -47,7 +47,7 @@ func (m *Manager) createOrOpenDB(userID string) (*gorm.DB, error) {
 	}
 
 	dbPath := filepath.Join(m.dataDir, fmt.Sprintf("%s.db", userID))
-	
+
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database for user %s: %w", userID, err)
@@ -78,14 +78,14 @@ func (m *Manager) CloseDB(userID string) error {
 		if err != nil {
 			return err
 		}
-		
+
 		if err := sqlDB.Close(); err != nil {
 			return err
 		}
-		
+
 		delete(m.dbs, userID)
 	}
-	
+
 	return nil
 }
 
@@ -98,14 +98,14 @@ func (m *Manager) CloseAll() error {
 		if err != nil {
 			continue
 		}
-		
+
 		if err := sqlDB.Close(); err != nil {
 			continue
 		}
-		
+
 		delete(m.dbs, userID)
 	}
-	
+
 	return nil
 }
 
