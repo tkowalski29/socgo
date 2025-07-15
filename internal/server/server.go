@@ -33,6 +33,12 @@ func New(container *di.Container) http.Handler {
 	r.HandleFunc("/", handlers.HomeHandler)
 	r.HandleFunc("/health", handlers.HealthHandler)
 
+	// Post routes
+	r.HandleFunc("/posts", postHandler.HandlePost).Methods("POST")
+	r.HandleFunc("/posts/history", postHandler.HandleHistory).Methods("GET")
+	r.HandleFunc("/posts/calendar", postHandler.HandleCalendar).Methods("GET")
+	r.HandleFunc("/posts/calendar-page", postHandler.HandleCalendarPage).Methods("GET")
+
 	// OAuth routes
 	r.HandleFunc("/connect/{provider}", oauthHandler.HandleConnect).Methods("GET")
 	r.HandleFunc("/oauth/callback/{provider}", oauthHandler.HandleCallback).Methods("GET")
