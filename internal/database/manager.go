@@ -137,7 +137,9 @@ func (m *Manager) GetAllUserDatabases() map[string]*gorm.DB {
 
 // NewTestManager creates a test database manager for testing
 func NewTestManager(t *testing.T) *Manager {
-	os.MkdirAll("./data", 0755) // Ensure ./data exists for test DBs
+	if err := os.MkdirAll("./data", 0755); err != nil {
+		t.Fatalf("Failed to create ./data directory: %v", err)
+	}
 	tmpDir := "./data/test_socgo_" + time.Now().Format("20060102_150405")
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)

@@ -43,7 +43,9 @@ func TestAuthMiddleware_APIAuthMiddleware_ValidToken(t *testing.T) {
 	// Create test handler
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success"))
+		if _, err := w.Write([]byte("success")); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	})
 
 	// Wrap with middleware
@@ -87,7 +89,9 @@ func TestAuthMiddleware_APIAuthMiddleware_NoAuthHeader(t *testing.T) {
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success"))
+		if _, err := w.Write([]byte("success")); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	})
 
 	handler := authMiddleware.APIAuthMiddleware(testHandler)
@@ -113,7 +117,9 @@ func TestAuthMiddleware_APIAuthMiddleware_InvalidToken(t *testing.T) {
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success"))
+		if _, err := w.Write([]byte("success")); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	})
 
 	handler := authMiddleware.APIAuthMiddleware(testHandler)
@@ -140,7 +146,9 @@ func TestAuthMiddleware_APIAuthMiddleware_InvalidAuthFormat(t *testing.T) {
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success"))
+		if _, err := w.Write([]byte("success")); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	})
 
 	handler := authMiddleware.APIAuthMiddleware(testHandler)

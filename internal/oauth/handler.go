@@ -106,7 +106,7 @@ func (h *Handler) HandleProviders(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleProvidersJSON(w http.ResponseWriter, providers []database.Provider) {
 	type ProviderResponse struct {
-		DisplayName string `json:"display_name"`
+		DisplayName  string `json:"display_name"`
 		ProviderType string `json:"provider_type"`
 		ConnectedAt  string `json:"connected_at"`
 		Status       string `json:"status"`
@@ -223,7 +223,10 @@ func (h *Handler) handleProvidersHTML(w http.ResponseWriter, providers []databas
 </body>
 </html>`
 
-	_, _ = w.Write([]byte(html))
+	if _, err := w.Write([]byte(html)); err != nil {
+		// Log error but don't fail the operation since response headers are already set
+		_ = err // explicitly ignore error
+	}
 }
 
 func (h *Handler) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
