@@ -183,6 +183,26 @@ func (s *Service) GetProviders(userID string) ([]database.Provider, error) {
 	return providers, err
 }
 
+func (s *Service) DisconnectProvider(userID string, providerID uint) error {
+	db, err := s.dbManager.GetDB(userID)
+	if err != nil {
+		return err
+	}
+
+	var provider database.Provider
+	if err := db.First(&provider, providerID).Error; err != nil {
+		return fmt.Errorf("provider not found: %w", err)
+	}
+
+	if provider.UserID != userID {
+		return fmt.Errorf("provider does not belong to user")
+	}
+
+	// Set provider as inactive instead of deleting
+	provider.IsActive = false
+	return db.Save(&provider).Error
+}
+
 func (s *Service) getClientID(providerType ProviderType) string {
 	switch providerType {
 	case ProviderTypeTikTok:
