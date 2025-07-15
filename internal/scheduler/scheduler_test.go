@@ -21,7 +21,11 @@ func TestScheduler_E2E(t *testing.T) {
 
 	// Create database manager
 	dbManager := database.NewManager(tempDir)
-	defer dbManager.CloseAll()
+	defer func() {
+		if err := dbManager.CloseAll(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Create OAuth service
 	oauthService := oauth.NewService(dbManager)
