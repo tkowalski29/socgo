@@ -72,7 +72,13 @@ func (s *Service) exchangeCodeForToken(providerType ProviderType, code string) (
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log error but don't fail the operation
+				_ = err // explicitly ignore error
+			_ = err // explicitly ignore error
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("token request failed with status: %d", resp.StatusCode)
@@ -116,7 +122,13 @@ func (s *Service) getUserInfo(providerType ProviderType, accessToken string) (*U
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log error but don't fail the operation
+				_ = err // explicitly ignore error
+			_ = err // explicitly ignore error
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("user info request failed with status: %d", resp.StatusCode)

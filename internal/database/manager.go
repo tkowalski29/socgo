@@ -118,3 +118,16 @@ func (m *Manager) UserDBExists(userID string) bool {
 	_, err := os.Stat(dbPath)
 	return err == nil
 }
+
+// GetAllUserDatabases returns all currently opened user databases
+func (m *Manager) GetAllUserDatabases() map[string]*gorm.DB {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	result := make(map[string]*gorm.DB)
+	for userID, db := range m.dbs {
+		result[userID] = db
+	}
+
+	return result
+}

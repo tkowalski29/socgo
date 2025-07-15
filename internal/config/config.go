@@ -60,7 +60,11 @@ func loadEnvFile() {
 		log.Println("No .env file found, using defaults and environment variables")
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Failed to close .env file: %v", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {

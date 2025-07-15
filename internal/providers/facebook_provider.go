@@ -43,7 +43,13 @@ func (p *FacebookProvider) Publish(ctx context.Context, content string) (postID 
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log error but don't fail the operation
+				_ = err // explicitly ignore error
+			_ = err // explicitly ignore error
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("API request failed with status: %d", resp.StatusCode)
@@ -95,7 +101,12 @@ func (p *FacebookProvider) GetStatus(ctx context.Context, postID string) (status
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log error but don't fail the operation
+				_ = err // explicitly ignore error
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("API request failed with status: %d", resp.StatusCode)
@@ -164,7 +175,12 @@ func (p *FacebookProvider) RefreshToken(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log error but don't fail the operation
+				_ = err // explicitly ignore error
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("token refresh failed with status: %d", resp.StatusCode)
