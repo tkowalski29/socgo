@@ -45,6 +45,15 @@ type ScheduledJob struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
+type APIToken struct {
+	ID        uint           `json:"id" gorm:"primaryKey"`
+	Hash      string         `json:"-" gorm:"not null;uniqueIndex;type:varchar(64)"`
+	UserID    string         `json:"user_id" gorm:"not null;index"`
+	CreatedAt time.Time      `json:"created_at"`
+	LastUsed  *time.Time     `json:"last_used,omitempty"`
+	DeletedAt gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
+}
+
 const (
 	JobStatusPending   = "pending"
 	JobStatusExecuting = "executing"

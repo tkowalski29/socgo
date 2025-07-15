@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"testing"
+	"time"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -66,6 +68,7 @@ func (m *Manager) runMigrations(db *gorm.DB) error {
 		&Post{},
 		&Provider{},
 		&ScheduledJob{},
+		&APIToken{},
 	)
 }
 
@@ -130,4 +133,18 @@ func (m *Manager) GetAllUserDatabases() map[string]*gorm.DB {
 	}
 
 	return result
+}
+
+// NewTestManager creates a test database manager for testing
+func NewTestManager(t *testing.T) *Manager {
+	tmpDir := "/tmp/test_socgo_" + time.Now().Format("20060102_150405")
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
+	return NewManager(tmpDir)
+}
+
+// Close closes all databases and cleans up resources
+func (m *Manager) Close() error {
+	return m.CloseAll()
 }
