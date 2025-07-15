@@ -21,9 +21,9 @@ func NewHandler(oauthService *Service) *Handler {
 func (h *Handler) HandleConnect(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	provider := vars["provider"]
-	
+
 	providerType := ProviderType(strings.ToLower(provider))
-	
+
 	if _, exists := SupportedProviders[providerType]; !exists {
 		http.Error(w, fmt.Sprintf("Unsupported provider: %s", provider), http.StatusBadRequest)
 		return
@@ -47,9 +47,9 @@ func (h *Handler) HandleConnect(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	provider := vars["provider"]
-	
+
 	providerType := ProviderType(strings.ToLower(provider))
-	
+
 	if _, exists := SupportedProviders[providerType]; !exists {
 		http.Error(w, fmt.Sprintf("Unsupported provider: %s", provider), http.StatusBadRequest)
 		return
@@ -92,7 +92,7 @@ func (h *Handler) HandleProviders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	
+
 	html := `<!DOCTYPE html>
 <html>
 <head>

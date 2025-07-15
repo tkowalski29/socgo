@@ -13,9 +13,9 @@ import (
 
 // ProviderService manages social media providers with Strategy pattern
 type ProviderService struct {
-	registry    *ProviderRegistry
-	factory     *ProviderFactory
-	dbManager   *database.Manager
+	registry     *ProviderRegistry
+	factory      *ProviderFactory
+	dbManager    *database.Manager
 	oauthService *oauth.Service
 }
 
@@ -23,7 +23,7 @@ type ProviderService struct {
 func NewProviderService(dbManager *database.Manager, oauthService *oauth.Service) *ProviderService {
 	registry := NewProviderRegistry()
 	factory := NewProviderFactory(&http.Client{})
-	
+
 	return &ProviderService{
 		registry:     registry,
 		factory:      factory,
@@ -42,7 +42,7 @@ func (s *ProviderService) PublishContent(ctx context.Context, userID string, pro
 
 	// Convert provider name to type
 	providerType := ProviderType(providerName)
-	
+
 	// Create provider instance using factory
 	provider, err := s.factory.CreateProvider(providerType, config)
 	if err != nil {
@@ -68,7 +68,7 @@ func (s *ProviderService) GetPostStatus(ctx context.Context, userID string, prov
 
 	// Convert provider name to type
 	providerType := ProviderType(providerName)
-	
+
 	// Create provider instance using factory
 	provider, err := s.factory.CreateProvider(providerType, config)
 	if err != nil {
@@ -94,7 +94,7 @@ func (s *ProviderService) RefreshProviderToken(ctx context.Context, userID strin
 
 	// Convert provider name to type
 	providerType := ProviderType(providerName)
-	
+
 	// Create provider instance using factory
 	provider, err := s.factory.CreateProvider(providerType, config)
 	if err != nil {

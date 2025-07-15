@@ -10,10 +10,10 @@ type Provider interface {
 	// Publish publishes content to the social media platform
 	// Returns postID on success
 	Publish(ctx context.Context, content string) (postID string, err error)
-	
+
 	// GetStatus retrieves the status of a published post
 	GetStatus(ctx context.Context, postID string) (status string, err error)
-	
+
 	// RefreshToken refreshes the access token if needed
 	RefreshToken(ctx context.Context) error
 }

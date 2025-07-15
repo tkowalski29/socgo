@@ -101,4 +101,3 @@ func NewFacebookProvider(config *ProviderConfig, httpClient HTTPClient) Provider
 		httpClient: httpClient,
 	}
 }
-

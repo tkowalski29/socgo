@@ -7,7 +7,7 @@ import (
 type ProviderType string
 
 const (
-	ProviderTypeTikTok   ProviderType = "tiktok"
+	ProviderTypeTikTok    ProviderType = "tiktok"
 	ProviderTypeInstagram ProviderType = "instagram"
 	ProviderTypeFacebook  ProviderType = "facebook"
 )
@@ -30,13 +30,13 @@ type UserInfo struct {
 }
 
 type ProviderMetadata struct {
-	Name         string `json:"name"`
-	Type         ProviderType `json:"type"`
-	AuthURL      string `json:"auth_url"`
-	TokenURL     string `json:"token_url"`
-	UserInfoURL  string `json:"user_info_url"`
-	Scopes       []string `json:"scopes"`
-	RedirectURI  string `json:"redirect_uri"`
+	Name        string       `json:"name"`
+	Type        ProviderType `json:"type"`
+	AuthURL     string       `json:"auth_url"`
+	TokenURL    string       `json:"token_url"`
+	UserInfoURL string       `json:"user_info_url"`
+	Scopes      []string     `json:"scopes"`
+	RedirectURI string       `json:"redirect_uri"`
 }
 
 var SupportedProviders = map[ProviderType]ProviderMetadata{
