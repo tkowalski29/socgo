@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/tkowalski/socgo/internal/database"
+	"github.com/tkowalski/socgo/internal/providers"
 )
 
 type Container struct {
@@ -35,12 +36,12 @@ func (c *Container) GetHTTPHandler(name string) (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	handler, ok := service.(http.Handler)
 	if !ok {
 		return nil, fmt.Errorf("service %s is not an http.Handler", name)
 	}
-	
+
 	return handler, nil
 }
 
@@ -78,11 +79,25 @@ func (c *Container) GetDBManager() *database.Manager {
 	if err != nil {
 		panic(err)
 	}
-	
+
 	manager, ok := service.(*database.Manager)
 	if !ok {
 		panic("database service is not a *database.Manager")
 	}
-	
+
 	return manager
+}
+
+func (c *Container) GetProviderService() *providers.ProviderService {
+	service, err := c.Get("provider_service")
+	if err != nil {
+		panic(err)
+	}
+
+	providerService, ok := service.(*providers.ProviderService)
+	if !ok {
+		panic("provider_service is not a *providers.ProviderService")
+	}
+
+	return providerService
 }
