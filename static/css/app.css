@@ -1,0 +1,54 @@
+/* Basic styles for progressive enhancement */
+
+/* Loading states for HTMX */
+.htmx-indicator {
+    display: none;
+}
+
+.htmx-request .htmx-indicator {
+    display: inline;
+}
+
+.htmx-request.htmx-indicator {
+    display: inline;
+}
+
+/* Form enhancements */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+/* Fallback styles for when JS is disabled */
+.no-js .htmx-indicator {
+    display: none !important;
+}
+
+.no-js .js-only {
+    display: none !important;
+}
+
+/* Enhanced accessibility */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Custom focus styles */
+.focus-ring:focus {
+    outline: 2px solid #3B82F6;
+    outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+}

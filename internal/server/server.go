@@ -20,8 +20,11 @@ func New(container *di.Container) http.Handler {
 	oauthService := oauth.NewService(container.GetDBManager())
 	oauthHandler := oauth.NewHandler(oauthService)
 
-	// Post handler
+	// Post handler (API)
 	postHandler := handlers.NewPostHandler(container.GetDBManager(), container.GetProviderService())
+
+	// Web handler (UI)
+	webHandler := handlers.NewWebHandler(container.GetDBManager(), container.GetProviderService())
 
 	// API token handler
 	apiTokenHandler := handlers.NewAPITokenHandler(container.GetDBManager())
@@ -29,15 +32,28 @@ func New(container *di.Container) http.Handler {
 	// Auth middleware
 	authMiddleware := middleware.NewAuthMiddleware(container.GetDBManager())
 
-	// Routes
-	r.HandleFunc("/", handlers.HomeHandler)
+	// Web routes (UI pages)
+	r.HandleFunc("/", webHandler.HomePage).Methods("GET")
+	r.HandleFunc("/dashboard", webHandler.DashboardPage).Methods("GET")
+	r.HandleFunc("/providers", webHandler.ProvidersPage).Methods("GET")
+	r.HandleFunc("/posts", webHandler.PostsPage).Methods("GET")
+	r.HandleFunc("/calendar", webHandler.CalendarPage).Methods("GET")
 	r.HandleFunc("/health", handlers.HealthHandler)
 
-	// Post routes
-	r.HandleFunc("/posts", postHandler.HandlePost).Methods("POST")
+	// Web form handlers
+	r.HandleFunc("/posts", webHandler.HandlePost).Methods("POST")
+
+	// HTMX/AJAX endpoints for web UI
 	r.HandleFunc("/posts/history", postHandler.HandleHistory).Methods("GET")
 	r.HandleFunc("/posts/calendar", postHandler.HandleCalendar).Methods("GET")
 	r.HandleFunc("/posts/calendar-page", postHandler.HandleCalendarPage).Methods("GET")
+
+	// Stats endpoints for dashboard
+	r.HandleFunc("/api/stats/providers", webHandler.HandleProvidersCount).Methods("GET")
+	r.HandleFunc("/api/stats/published", webHandler.HandlePublishedCount).Methods("GET")
+	r.HandleFunc("/api/stats/scheduled", webHandler.HandleScheduledCount).Methods("GET")
+	r.HandleFunc("/api/stats/monthly", webHandler.HandleMonthlyCount).Methods("GET")
+	r.HandleFunc("/api/providers/options", webHandler.HandleProvidersOptions).Methods("GET")
 
 	// OAuth routes
 	r.HandleFunc("/connect/{provider}", oauthHandler.HandleConnect).Methods("GET")
@@ -52,7 +68,7 @@ func New(container *di.Container) http.Handler {
 	apiRouter := r.PathPrefix("/api").Subrouter()
 	apiRouter.Use(authMiddleware.APIAuthMiddleware)
 	
-	// Move posts endpoint to protected API routes
+	// JSON API endpoints (for external integrations)
 	apiRouter.HandleFunc("/posts", postHandler.HandlePost).Methods("POST")
 
 	return r
