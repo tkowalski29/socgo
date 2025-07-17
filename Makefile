@@ -15,6 +15,9 @@ build:
 clean:
 	rm -rf bin/
 
+templ:
+	templ generate
+
 install-tools:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install github.com/a-h/templ/cmd/templ@latest

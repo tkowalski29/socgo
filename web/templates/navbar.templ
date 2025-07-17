@@ -1,0 +1,27 @@
+package templates
+
+templ Navbar(currentPage string) {
+	<nav class="bg-white shadow-md">
+		<div class="container mx-auto px-4">
+			<div class="flex justify-between items-center py-4">
+				<div class="flex items-center space-x-4">
+					<a href="/" class="text-2xl font-bold text-blue-600">SocGo</a>
+				</div>
+				
+				<div class="flex items-center space-x-6">
+					<a href="/dashboard" class={ getNavLinkClass(currentPage, "dashboard") }>Dashboard</a>
+					<a href="/providers" class={ getNavLinkClass(currentPage, "providers") }>Providers</a>
+					<a href="/posts" class={ getNavLinkClass(currentPage, "posts") }>Posts</a>
+					<a href="/calendar" class={ getNavLinkClass(currentPage, "calendar") }>Calendar</a>
+				</div>
+			</div>
+		</div>
+	</nav>
+}
+
+func getNavLinkClass(currentPage, page string) string {
+	if currentPage == page {
+		return "text-blue-600 font-semibold"
+	}
+	return "text-gray-600 hover:text-blue-600 transition-colors"
+} 

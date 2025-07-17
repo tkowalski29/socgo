@@ -3,24 +3,22 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/tkowalski/socgo/internal/database"
 	"github.com/tkowalski/socgo/internal/providers"
+	"github.com/tkowalski/socgo/web/templates"
 )
 
 // WebHandler handles web page requests
 type WebHandler struct {
 	dbManager       *database.Manager
 	providerService *providers.ProviderService
-	templates       *template.Template
 }
 
 // PageData holds common data for all pages
@@ -34,61 +32,9 @@ type PageData struct {
 
 // NewWebHandler creates a new WebHandler instance
 func NewWebHandler(dbManager *database.Manager, providerService *providers.ProviderService) *WebHandler {
-	h := &WebHandler{
+	return &WebHandler{
 		dbManager:       dbManager,
 		providerService: providerService,
-	}
-	h.loadTemplates()
-	return h
-}
-
-func (h *WebHandler) loadTemplates() {
-	var err error
-	h.templates, err = template.ParseGlob("templates/*.tmpl")
-	if err != nil {
-		log.Printf("Error loading templates: %v", err)
-		return
-	}
-
-	// Load partials
-	partials, err := filepath.Glob("templates/partials/*.tmpl")
-	if err == nil && len(partials) > 0 {
-		h.templates, err = h.templates.ParseFiles(partials...)
-		if err != nil {
-			log.Printf("Error loading partial templates: %v", err)
-		}
-	}
-}
-
-// Helper method to render templates with flash message support
-func (h *WebHandler) render(w http.ResponseWriter, r *http.Request, templateName string, data PageData) {
-	// Check for flash messages in headers (from HTMX)
-	if flashMsg := r.Header.Get("HX-Flash-Message"); flashMsg != "" {
-		data.FlashMessage = flashMsg
-		data.FlashType = r.Header.Get("HX-Flash-Type")
-		if data.FlashType == "" {
-			data.FlashType = "info"
-		}
-	}
-
-	// Check for flash messages in query parameters (from redirects)
-	if flashMsg := r.URL.Query().Get("flash"); flashMsg != "" {
-		if decoded, err := url.QueryUnescape(flashMsg); err == nil {
-			data.FlashMessage = decoded
-		} else {
-			data.FlashMessage = flashMsg
-		}
-		data.FlashType = r.URL.Query().Get("flash_type")
-		if data.FlashType == "" {
-			data.FlashType = "info"
-		}
-	}
-
-	w.Header().Set("Content-Type", "text/html")
-	if err := h.templates.ExecuteTemplate(w, "layout.tmpl", data); err != nil {
-		log.Printf("Error executing template %s: %v", templateName, err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
 	}
 }
 
@@ -105,58 +51,193 @@ func (h *WebHandler) redirectWithFlash(w http.ResponseWriter, r *http.Request, u
 	if flashType != "" {
 		flashParam += "&flash_type=" + flashType
 	}
-	
+
 	connector := "?"
 	if strings.Contains(url, "?") {
 		connector = "&"
 	}
-	
+
 	http.Redirect(w, r, url+connector+flashParam[1:], http.StatusSeeOther)
 }
 
 // HomePage handles the home page
 func (h *WebHandler) HomePage(w http.ResponseWriter, r *http.Request) {
-	data := PageData{
-		Title:       "Home",
-		CurrentPage: "home",
+	// Get flash message from query parameters
+	flashMessage := ""
+	flashType := "info"
+	if flashMsg := r.URL.Query().Get("flash"); flashMsg != "" {
+		if decoded, err := url.QueryUnescape(flashMsg); err == nil {
+			flashMessage = decoded
+		} else {
+			flashMessage = flashMsg
+		}
+		flashType = r.URL.Query().Get("flash_type")
+		if flashType == "" {
+			flashType = "info"
+		}
 	}
-	h.render(w, r, "home.tmpl", data)
+
+	// Create layout data
+	layoutData := templates.LayoutData{
+		Title:        "Home",
+		CurrentPage:  "home",
+		FlashMessage: flashMessage,
+		FlashType:    flashType,
+		Content:      templates.HomeContent(),
+	}
+
+	// Render the layout
+	w.Header().Set("Content-Type", "text/html")
+	layoutComponent := templates.Layout(layoutData)
+	if err := layoutComponent.Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering home page: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // DashboardPage handles the dashboard page
 func (h *WebHandler) DashboardPage(w http.ResponseWriter, r *http.Request) {
-	data := PageData{
-		Title:       "Dashboard",
-		CurrentPage: "dashboard",
+	// Get flash message from query parameters
+	flashMessage := ""
+	flashType := "info"
+	if flashMsg := r.URL.Query().Get("flash"); flashMsg != "" {
+		if decoded, err := url.QueryUnescape(flashMsg); err == nil {
+			flashMessage = decoded
+		} else {
+			flashMessage = flashMsg
+		}
+		flashType = r.URL.Query().Get("flash_type")
+		if flashType == "" {
+			flashType = "info"
+		}
 	}
-	h.render(w, r, "dashboard.tmpl", data)
+
+	// Create layout data
+	layoutData := templates.LayoutData{
+		Title:        "Dashboard",
+		CurrentPage:  "dashboard",
+		FlashMessage: flashMessage,
+		FlashType:    flashType,
+		Content:      templates.DashboardContent(),
+	}
+
+	// Render the layout
+	w.Header().Set("Content-Type", "text/html")
+	layoutComponent := templates.Layout(layoutData)
+	if err := layoutComponent.Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering dashboard page: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // ProvidersPage handles the providers page
 func (h *WebHandler) ProvidersPage(w http.ResponseWriter, r *http.Request) {
-	data := PageData{
-		Title:       "Providers",
-		CurrentPage: "providers",
+	// Get flash message from query parameters
+	flashMessage := ""
+	flashType := "info"
+	if flashMsg := r.URL.Query().Get("flash"); flashMsg != "" {
+		if decoded, err := url.QueryUnescape(flashMsg); err == nil {
+			flashMessage = decoded
+		} else {
+			flashMessage = flashMsg
+		}
+		flashType = r.URL.Query().Get("flash_type")
+		if flashType == "" {
+			flashType = "info"
+		}
 	}
-	h.render(w, r, "providers.tmpl", data)
+
+	// Create layout data
+	layoutData := templates.LayoutData{
+		Title:        "Providers",
+		CurrentPage:  "providers",
+		FlashMessage: flashMessage,
+		FlashType:    flashType,
+		Content:      templates.ProvidersContent(),
+	}
+
+	// Render the layout
+	w.Header().Set("Content-Type", "text/html")
+	layoutComponent := templates.Layout(layoutData)
+	if err := layoutComponent.Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering providers page: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // PostsPage handles the posts page
 func (h *WebHandler) PostsPage(w http.ResponseWriter, r *http.Request) {
-	data := PageData{
-		Title:       "Create Post",
-		CurrentPage: "posts",
+	// Get flash message from query parameters
+	flashMessage := ""
+	flashType := "info"
+	if flashMsg := r.URL.Query().Get("flash"); flashMsg != "" {
+		if decoded, err := url.QueryUnescape(flashMsg); err == nil {
+			flashMessage = decoded
+		} else {
+			flashMessage = flashMsg
+		}
+		flashType = r.URL.Query().Get("flash_type")
+		if flashType == "" {
+			flashType = "info"
+		}
 	}
-	h.render(w, r, "posts.tmpl", data)
+
+	// Create layout data
+	layoutData := templates.LayoutData{
+		Title:        "Create Post",
+		CurrentPage:  "posts",
+		FlashMessage: flashMessage,
+		FlashType:    flashType,
+		Content:      templates.PostsContent(),
+	}
+
+	// Render the layout
+	w.Header().Set("Content-Type", "text/html")
+	layoutComponent := templates.Layout(layoutData)
+	if err := layoutComponent.Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering posts page: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // CalendarPage handles the calendar page
 func (h *WebHandler) CalendarPage(w http.ResponseWriter, r *http.Request) {
-	data := PageData{
-		Title:       "Calendar",
-		CurrentPage: "calendar",
+	// Get flash message from query parameters
+	flashMessage := ""
+	flashType := "info"
+	if flashMsg := r.URL.Query().Get("flash"); flashMsg != "" {
+		if decoded, err := url.QueryUnescape(flashMsg); err == nil {
+			flashMessage = decoded
+		} else {
+			flashMessage = flashMsg
+		}
+		flashType = r.URL.Query().Get("flash_type")
+		if flashType == "" {
+			flashType = "info"
+		}
 	}
-	h.render(w, r, "calendar.tmpl", data)
+
+	// Create layout data
+	layoutData := templates.LayoutData{
+		Title:        "Calendar",
+		CurrentPage:  "calendar",
+		FlashMessage: flashMessage,
+		FlashType:    flashType,
+		Content:      templates.CalendarContent(),
+	}
+
+	// Render the layout
+	w.Header().Set("Content-Type", "text/html")
+	layoutComponent := templates.Layout(layoutData)
+	if err := layoutComponent.Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering calendar page: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // HandlePost handles form submissions for creating posts
@@ -213,10 +294,10 @@ func (h *WebHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 
 	// Use existing post handler logic
 	postHandler := NewPostHandler(h.dbManager, h.providerService)
-	
+
 	// Create a custom response writer to capture the response
 	responseCapture := &responseCapture{ResponseWriter: w}
-	
+
 	// Create new request with JSON body
 	reqJSON := strings.NewReader(fmt.Sprintf(`{
 		"provider_id": %s,
@@ -230,14 +311,14 @@ func (h *WebHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		}
 		return "now"
 	}()))
-	
+
 	newReq := r.Clone(r.Context())
 	newReq.Body = io.NopCloser(reqJSON)
 	newReq.Header.Set("Content-Type", "application/json")
-	
+
 	// Call the existing handler
 	postHandler.HandlePost(responseCapture, newReq)
-	
+
 	// Handle response based on status
 	if responseCapture.statusCode >= 200 && responseCapture.statusCode < 300 {
 		var response PostResponse
@@ -245,7 +326,7 @@ func (h *WebHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		if err := json.Unmarshal(responseCapture.body, &response); err == nil {
 			message = response.Message
 		}
-		
+
 		// Check if this is an HTMX request
 		if r.Header.Get("HX-Request") == "true" {
 			h.setFlashMessage(w, message, "success")
@@ -260,7 +341,7 @@ func (h *WebHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		message := "Failed to create post"
-		
+
 		// Check if this is an HTMX request
 		if r.Header.Get("HX-Request") == "true" {
 			h.setFlashMessage(w, message, "error")
@@ -359,7 +440,7 @@ func (h *WebHandler) HandleMonthlyCount(w http.ResponseWriter, r *http.Request) 
 	endOfMonth := startOfMonth.AddDate(0, 1, 0).Add(-time.Second)
 
 	var count int64
-	db.Model(&database.Post{}).Where("user_id = ? AND created_at >= ? AND created_at <= ?", 
+	db.Model(&database.Post{}).Where("user_id = ? AND created_at >= ? AND created_at <= ?",
 		userID, startOfMonth, endOfMonth).Count(&count)
 	if _, err := w.Write([]byte(fmt.Sprintf("%d", count))); err != nil {
 		log.Printf("Error writing monthly count: %v", err)
