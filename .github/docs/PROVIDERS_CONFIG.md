@@ -58,19 +58,7 @@ providers:
 
 Aby providerzy społecznościowi mogli przekierowywać użytkowników z powrotem do aplikacji po autoryzacji, musisz skonfigurować realny host. System obsługuje kilka sposobów konfiguracji:
 
-### 1. Automatyczne wykrywanie ngrok
-
-System automatycznie wykrywa URL ngrok i ustawia go jako BaseURL:
-
-```bash
-# Uruchom ngrok
-ngrok http 8080
-
-# Uruchom aplikację - automatycznie wykryje ngrok URL
-go run cmd/main.go
-```
-
-### 2. Ręczna konfiguracja w config.yml
+### 1. Ręczna konfiguracja w config.yml
 
 ```yaml
 server:
@@ -79,27 +67,29 @@ server:
   base_url: "https://9a8d76d5d3ee.ngrok-free.app"  # Twój realny host
 ```
 
-### 3. Zmienna środowiskowa
+### 2. Zmienna środowiskowa SERVER_BASE_URL
 
 ```bash
 export SERVER_BASE_URL="https://9a8d76d5d3ee.ngrok-free.app"
 go run cmd/main.go
 ```
 
-### 4. Zmienna środowiskowa NGROK_URL
+### 3. Zmienna środowiskowa NGROK_URL
 
 ```bash
 export NGROK_URL="https://9a8d76d5d3ee.ngrok-free.app"
 go run cmd/main.go
 ```
 
-### 5. Plik .env
+### 4. Plik .env
 
 ```env
 SERVER_BASE_URL=https://9a8d76d5d3ee.ngrok-free.app
 # lub
 NGROK_URL=https://9a8d76d5d3ee.ngrok-free.app
 ```
+
+**Uwaga**: `SERVER_BASE_URL` ma pierwszeństwo przed `NGROK_URL`.
 
 ## Pola konfiguracji
 
@@ -195,10 +185,7 @@ export FACEBOOK_CLIENT_SECRET="your_client_secret"
 - Sprawdź czy BaseURL jest poprawnie skonfigurowany w config.yml lub zmiennych środowiskowych
 - Dla ngrok: upewnij się, że używasz HTTPS URL (nie HTTP)
 
-### Problem z automatycznym wykrywaniem ngrok
-- Sprawdź czy ngrok jest uruchomiony na porcie 4040
-- Sprawdź czy możesz uzyskać dostęp do `http://localhost:4040/api/tunnels`
-- Jeśli automatyczne wykrywanie nie działa, użyj ręcznej konfiguracji przez zmienną środowiskową
+
 
 ### Sprawdzanie konfiguracji BaseURL
 Podczas startu aplikacji zobaczysz logi:

@@ -2,13 +2,10 @@ package config
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -84,18 +81,12 @@ func loadFromYAML() (*Config, error) {
 func loadFromEnv() *Config {
 	baseURL := getEnv("SERVER_BASE_URL", "")
 	if baseURL == "" {
-		// Check for NGROK_URL environment variable first
+		// Check for NGROK_URL environment variable
 		if ngrokURL := getEnv("NGROK_URL", ""); ngrokURL != "" {
 			baseURL = ngrokURL
 			log.Printf("Using NGROK_URL from environment: %s", ngrokURL)
 		} else {
-			// Try to detect ngrok URL automatically
-			if ngrokURL := detectNgrokURL(); ngrokURL != "" {
-				baseURL = ngrokURL
-				log.Printf("Auto-detected ngrok URL: %s", ngrokURL)
-			} else {
-				baseURL = "http://localhost:8080"
-			}
+			baseURL = "http://localhost:8080"
 		}
 	}
 
@@ -131,13 +122,7 @@ func setDefaults(config *Config) {
 		config.Server.Host = "localhost"
 	}
 	if config.Server.BaseURL == "" {
-		// Try to detect ngrok URL automatically
-		if ngrokURL := detectNgrokURL(); ngrokURL != "" {
-			config.Server.BaseURL = ngrokURL
-			log.Printf("Auto-detected ngrok URL: %s", ngrokURL)
-		} else {
-			config.Server.BaseURL = "http://localhost:8080"
-		}
+		config.Server.BaseURL = "http://localhost:8080"
 	}
 	if config.Database.DataDir == "" {
 		config.Database.DataDir = "./data"
@@ -222,61 +207,4 @@ func (c *Config) GetAllProviderInstances(providerType string) []ProviderInstance
 	default:
 		return []ProviderInstance{}
 	}
-}
-
-// detectNgrokURL tries to detect ngrok URL from ngrok API
-func detectNgrokURL() string {
-	// Try ngrok API endpoints
-	apiEndpoints := []string{
-		"http://localhost:4040/api/tunnels",
-		"http://127.0.0.1:4040/api/tunnels",
-	}
-
-	for _, endpoint := range apiEndpoints {
-		if url := tryNgrokAPI(endpoint); url != "" {
-			return url
-		}
-	}
-
-	return ""
-}
-
-// tryNgrokAPI attempts to get ngrok URL from the API
-func tryNgrokAPI(endpoint string) string {
-	client := &http.Client{Timeout: 2 * time.Second}
-
-	resp, err := client.Get(endpoint)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return ""
-	}
-
-	var result struct {
-		Tunnels []struct {
-			PublicURL string `json:"public_url"`
-			Proto     string `json:"proto"`
-		} `json:"tunnels"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return ""
-	}
-
-	// Find the first HTTPS tunnel
-	for _, tunnel := range result.Tunnels {
-		if tunnel.Proto == "https" && tunnel.PublicURL != "" {
-			return tunnel.PublicURL
-		}
-	}
-
-	// If no HTTPS, return the first available tunnel
-	if len(result.Tunnels) > 0 && result.Tunnels[0].PublicURL != "" {
-		return result.Tunnels[0].PublicURL
-	}
-
-	return ""
 }

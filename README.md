@@ -41,11 +41,10 @@ go run cmd/main.go
 # Terminal 1: Uruchom ngrok
 ngrok http 8080
 
-# Terminal 2: Uruchom aplikację
+# Terminal 2: Skonfiguruj base_url w config.yml lub zmiennych środowiskowych
+# i uruchom aplikację
 go run cmd/main.go
 ```
-
-Aplikacja automatycznie wykryje ngrok URL i użyje go jako BaseURL dla OAuth.
 
 #### Opcja C: Z Docker
 ```bash
@@ -61,14 +60,6 @@ docker-compose -f docker-compose.dev.yml up
 
 Aby providerzy społecznościowi mogli przekierowywać użytkowników z powrotem do aplikacji, musisz skonfigurować realny host:
 
-### Automatyczne wykrywanie ngrok
-System automatycznie wykrywa URL ngrok i ustawia go jako BaseURL:
-```bash
-ngrok http 8080
-go run cmd/main.go
-# Automatycznie wykryje: https://9a8d76d5d3ee.ngrok-free.app
-```
-
 ### Ręczna konfiguracja
 ```yaml
 # config.yml
@@ -82,6 +73,8 @@ export SERVER_BASE_URL="https://your-domain.com"
 # lub
 export NGROK_URL="https://your-ngrok-url.ngrok-free.app"
 ```
+
+**Uwaga**: `SERVER_BASE_URL` ma pierwszeństwo przed `NGROK_URL`.
 
 ## Konfiguracja providerów
 

@@ -47,16 +47,6 @@ func TestGetEnv(t *testing.T) {
 	}
 }
 
-func TestDetectNgrokURL(t *testing.T) {
-	// Test when ngrok is not running (should return empty string)
-	// Note: This test may pass or fail depending on whether ngrok is running
-	url := detectNgrokURL()
-	// We can't reliably test this without mocking, so we'll just check it doesn't panic
-	if url != "" {
-		t.Logf("Ngrok URL detected: %s (this is expected if ngrok is running)", url)
-	}
-}
-
 func TestLoadFromEnvWithNgrokURL(t *testing.T) {
 	// Set NGROK_URL environment variable
 	os.Setenv("NGROK_URL", "https://test.ngrok.io")
