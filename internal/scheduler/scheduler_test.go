@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tkowalski/socgo/internal/config"
 	"github.com/tkowalski/socgo/internal/database"
 	"github.com/tkowalski/socgo/internal/oauth"
 	"github.com/tkowalski/socgo/internal/providers"
@@ -28,7 +29,8 @@ func TestScheduler_E2E(t *testing.T) {
 	}()
 
 	// Create OAuth service
-	oauthService := oauth.NewService(dbManager)
+	cfg := &config.Config{}
+	oauthService := oauth.NewService(dbManager, cfg)
 
 	// Create provider service
 	providerService := providers.NewProviderService(dbManager, oauthService)

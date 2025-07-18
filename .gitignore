@@ -9,3 +9,8 @@ CLAUDE_*
 socgo
 main
 __debug_bin*
+cmd/data/*
+
+# Configuration files with sensitive data
+config.yml
+.env

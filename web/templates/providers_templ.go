@@ -8,6 +8,12 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "github.com/tkowalski/socgo/internal/config"
+
+type ProvidersData struct {
+	AvailableProviders map[string][]config.ProviderInstance
+}
+
 func ProvidersContent() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -29,7 +35,7 @@ func ProvidersContent() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div><h1 class=\"text-4xl font-bold mb-6\">Providers</h1><p class=\"mb-4\">Manage your connected providers here.</p><!-- Dodaj tu resztę zawartości providers.tmpl --></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-4xl mx-auto\"><h1 class=\"text-4xl font-bold mb-6\">Providers</h1><p class=\"mb-8 text-gray-600\">Connect your social media accounts to start publishing content.</p><!-- Connect New Provider Section --><div class=\"bg-white rounded-lg shadow-md p-6 mb-8\"><h2 class=\"text-xl font-semibold mb-4\">Connect New Provider</h2><div id=\"providers-grid\" hx-get=\"/api/providers/available\" hx-trigger=\"load\" hx-swap=\"innerHTML\"><div class=\"flex items-center justify-center py-8\"><div class=\"animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600\"></div><span class=\"ml-2 text-gray-600\">Loading available providers...</span></div></div></div><!-- Connected Providers Section --><div class=\"bg-white rounded-lg shadow-md p-6\"><h2 class=\"text-xl font-semibold mb-4\">Connected Accounts</h2><div id=\"providers-list\" hx-get=\"/api/providers\" hx-trigger=\"load, refresh-providers from:body\" hx-swap=\"innerHTML\"><div class=\"flex items-center justify-center py-8\"><div class=\"animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600\"></div><span class=\"ml-2 text-gray-600\">Loading providers...</span></div></div><!-- Success message container --><div id=\"success-message\" class=\"hidden\"></div><script>\n        // Listen for refresh-providers event and show success message\n        document.body.addEventListener('refresh-providers', function() {\n          const successMsg = document.getElementById('success-message');\n          successMsg.innerHTML = '✓ Provider disconnected successfully';\n          successMsg.className = 'text-center py-4 text-green-600 font-medium';\n          successMsg.style.display = 'block';\n          \n          // Hide success message after 3 seconds\n          setTimeout(() => {\n            successMsg.style.display = 'none';\n          }, 3000);\n        });\n      </script></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

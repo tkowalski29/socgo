@@ -22,13 +22,17 @@ func main() {
 		log.Fatal("Failed to load config:", err)
 	}
 
+	// Log configuration info
+	log.Printf("Server will start on: %s", cfg.GetServerAddr())
+	log.Printf("Base URL for OAuth: %s", cfg.Server.BaseURL)
+
 	container := di.NewContainer()
 	container.Register("config", cfg)
 
 	dbManager := database.NewManager(cfg.Database.DataDir)
 	container.Register("database", dbManager)
 
-	oauthService := oauth.NewService(dbManager)
+	oauthService := oauth.NewService(dbManager, cfg)
 	container.Register("oauth_service", oauthService)
 
 	providerService := providers.NewProviderService(dbManager, oauthService)

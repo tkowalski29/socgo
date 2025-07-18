@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/tkowalski/socgo/internal/config"
 	"github.com/tkowalski/socgo/internal/database"
 	"github.com/tkowalski/socgo/internal/middleware"
 	"github.com/tkowalski/socgo/internal/oauth"
@@ -22,18 +23,19 @@ func TestAPITokenIntegration_EndToEnd(t *testing.T) {
 	// Create handlers and middleware
 	apiTokenHandler := NewAPITokenHandler(dbManager)
 	authMiddleware := middleware.NewAuthMiddleware(dbManager)
-	
+
 	// Create oauth service and provider service for testing
-	oauthService := oauth.NewService(dbManager)
+	cfg := &config.Config{}
+	oauthService := oauth.NewService(dbManager, cfg)
 	providerService := providers.NewProviderService(dbManager, oauthService)
 	postHandler := NewPostHandler(dbManager, providerService)
 
 	// Create router with routes similar to server setup
 	r := mux.NewRouter()
-	
+
 	// API token generation endpoint (public)
 	r.HandleFunc("/api-tokens", apiTokenHandler.HandleCreateToken).Methods("POST")
-	
+
 	// Protected API routes with auth middleware
 	apiRouter := r.PathPrefix("/api").Subrouter()
 	apiRouter.Use(authMiddleware.APIAuthMiddleware)

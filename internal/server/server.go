@@ -17,7 +17,7 @@ func New(container *di.Container) http.Handler {
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	// OAuth service and handler
-	oauthService := oauth.NewService(container.GetDBManager())
+	oauthService := oauth.NewService(container.GetDBManager(), container.GetConfig())
 	oauthHandler := oauth.NewHandler(oauthService)
 
 	// Post handler (API)
@@ -58,8 +58,9 @@ func New(container *di.Container) http.Handler {
 	// OAuth routes
 	r.HandleFunc("/connect/{provider}", oauthHandler.HandleConnect).Methods("GET")
 	r.HandleFunc("/oauth/callback/{provider}", oauthHandler.HandleCallback).Methods("GET")
-	r.HandleFunc("/providers", oauthHandler.HandleProviders).Methods("GET")
-	r.HandleFunc("/providers/{id}", oauthHandler.HandleDisconnect).Methods("DELETE")
+	r.HandleFunc("/api/providers/available", oauthHandler.HandleAvailableProviders).Methods("GET")
+	r.HandleFunc("/api/providers", oauthHandler.HandleProviders).Methods("GET")
+	r.HandleFunc("/api/providers/{id}", oauthHandler.HandleDisconnect).Methods("DELETE")
 
 	// API token generation endpoint (public)
 	r.HandleFunc("/api-tokens", apiTokenHandler.HandleCreateToken).Methods("POST")
@@ -67,7 +68,7 @@ func New(container *di.Container) http.Handler {
 	// Protected API routes with auth middleware
 	apiRouter := r.PathPrefix("/api").Subrouter()
 	apiRouter.Use(authMiddleware.APIAuthMiddleware)
-	
+
 	// JSON API endpoints (for external integrations)
 	apiRouter.HandleFunc("/posts", postHandler.HandlePost).Methods("POST")
 

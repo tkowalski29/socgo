@@ -1,0 +1,41 @@
+server:
+  port: "8080"
+  host: "localhost"
+  base_url: "http://localhost:8080"  # Change this to your real host (e.g., https://9a8d76d5d3ee.ngrok-free.app)
+
+database:
+  data_dir: "./data"
+
+providers:
+  tiktok:
+    - name: "Personal TikTok"
+      client_id: "your_tiktok_client_id_1"
+      client_secret: "your_tiktok_client_secret_1"
+      description: "Personal TikTok account for sharing videos"
+    
+    - name: "Business TikTok"
+      client_id: "your_tiktok_client_id_2"
+      client_secret: "your_tiktok_client_secret_2"
+      description: "Business TikTok account for brand content"
+
+  instagram:
+    - name: "Personal Instagram"
+      client_id: "your_instagram_client_id_1"
+      client_secret: "your_instagram_client_secret_1"
+      description: "Personal Instagram account"
+    
+    - name: "Business Instagram"
+      client_id: "your_instagram_client_id_2"
+      client_secret: "your_instagram_client_secret_2"
+      description: "Business Instagram account for brand posts"
+
+  facebook:
+    - name: "Personal Facebook"
+      client_id: "your_facebook_client_id_1"
+      client_secret: "your_facebook_client_secret_1"
+      description: "Personal Facebook profile"
+    
+    - name: "Business Facebook"
+      client_id: "your_facebook_client_id_2"
+      client_secret: "your_facebook_client_secret_2"
+      description: "Business Facebook page" 

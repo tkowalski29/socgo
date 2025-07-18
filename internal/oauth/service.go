@@ -8,42 +8,57 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tkowalski/socgo/internal/config"
 	"github.com/tkowalski/socgo/internal/database"
 )
 
 type Service struct {
 	dbManager *database.Manager
+	config    *config.Config
 }
 
-func NewService(dbManager *database.Manager) *Service {
+func NewService(dbManager *database.Manager, cfg *config.Config) *Service {
 	return &Service{
 		dbManager: dbManager,
+		config:    cfg,
 	}
 }
 
-func (s *Service) GetConnectURL(userID string, providerType ProviderType) (string, error) {
+func (s *Service) GetConnectURL(userID string, providerType ProviderType, providerName string) (string, error) {
 	metadata, exists := SupportedProviders[providerType]
 	if !exists {
 		return "", fmt.Errorf("unsupported provider: %s", providerType)
 	}
 
+	// Get provider configuration
+	providerConfig, err := s.config.GetProviderConfig(string(providerType), providerName)
+	if err != nil {
+		return "", fmt.Errorf("provider configuration not found: %s/%s", providerType, providerName)
+	}
+
 	params := url.Values{}
 	params.Add("response_type", "code")
-	params.Add("client_id", s.getClientID(providerType))
+	params.Add("client_id", providerConfig.ClientID)
 	params.Add("redirect_uri", s.getRedirectURI(providerType))
 	params.Add("scope", strings.Join(metadata.Scopes, " "))
-	params.Add("state", userID)
+	params.Add("state", fmt.Sprintf("%s:%s", userID, providerName))
 
 	return metadata.AuthURL + "?" + params.Encode(), nil
 }
 
-func (s *Service) HandleCallback(userID string, providerType ProviderType, code string) error {
+func (s *Service) HandleCallback(userID string, providerType ProviderType, code string, providerName string) error {
 	_, exists := SupportedProviders[providerType]
 	if !exists {
 		return fmt.Errorf("unsupported provider: %s", providerType)
 	}
 
-	token, err := s.exchangeCodeForToken(providerType, code)
+	// Get provider configuration
+	providerConfig, err := s.config.GetProviderConfig(string(providerType), providerName)
+	if err != nil {
+		return fmt.Errorf("provider configuration not found: %s/%s", providerType, providerName)
+	}
+
+	token, err := s.exchangeCodeForToken(providerType, code, providerConfig)
 	if err != nil {
 		return fmt.Errorf("failed to exchange code for token: %w", err)
 	}
@@ -55,16 +70,16 @@ func (s *Service) HandleCallback(userID string, providerType ProviderType, code 
 
 	token.UserInfo = userInfo
 
-	return s.saveProviderConfig(userID, providerType, token)
+	return s.saveProviderConfig(userID, providerType, providerName, token)
 }
 
-func (s *Service) exchangeCodeForToken(providerType ProviderType, code string) (*ProviderConfig, error) {
+func (s *Service) exchangeCodeForToken(providerType ProviderType, code string, providerConfig *config.ProviderInstance) (*ProviderConfig, error) {
 	metadata := SupportedProviders[providerType]
 
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
-	data.Set("client_id", s.getClientID(providerType))
-	data.Set("client_secret", s.getClientSecret(providerType))
+	data.Set("client_id", providerConfig.ClientID)
+	data.Set("client_secret", providerConfig.ClientSecret)
 	data.Set("code", code)
 	data.Set("redirect_uri", s.getRedirectURI(providerType))
 
@@ -75,7 +90,6 @@ func (s *Service) exchangeCodeForToken(providerType ProviderType, code string) (
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			// Log error but don't fail the operation
-				_ = err // explicitly ignore error
 			_ = err // explicitly ignore error
 		}
 	}()
@@ -125,7 +139,6 @@ func (s *Service) getUserInfo(providerType ProviderType, accessToken string) (*U
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			// Log error but don't fail the operation
-				_ = err // explicitly ignore error
 			_ = err // explicitly ignore error
 		}
 	}()
@@ -142,7 +155,7 @@ func (s *Service) getUserInfo(providerType ProviderType, accessToken string) (*U
 	return &userInfo, nil
 }
 
-func (s *Service) saveProviderConfig(userID string, providerType ProviderType, config *ProviderConfig) error {
+func (s *Service) saveProviderConfig(userID string, providerType ProviderType, providerName string, config *ProviderConfig) error {
 	db, err := s.dbManager.GetDB(userID)
 	if err != nil {
 		return err
@@ -154,7 +167,7 @@ func (s *Service) saveProviderConfig(userID string, providerType ProviderType, c
 	}
 
 	provider := &database.Provider{
-		Name:     string(providerType),
+		Name:     providerName,
 		Type:     string(providerType),
 		Config:   string(configJSON),
 		UserID:   userID,
@@ -162,7 +175,7 @@ func (s *Service) saveProviderConfig(userID string, providerType ProviderType, c
 	}
 
 	var existingProvider database.Provider
-	result := db.Where("user_id = ? AND type = ?", userID, string(providerType)).First(&existingProvider)
+	result := db.Where("user_id = ? AND name = ?", userID, providerName).First(&existingProvider)
 
 	if result.Error == nil {
 		provider.ID = existingProvider.ID
@@ -203,34 +216,17 @@ func (s *Service) DisconnectProvider(userID string, providerID uint) error {
 	return db.Save(&provider).Error
 }
 
-func (s *Service) getClientID(providerType ProviderType) string {
-	switch providerType {
-	case ProviderTypeTikTok:
-		return "your_tiktok_client_id"
-	case ProviderTypeInstagram:
-		return "your_instagram_client_id"
-	case ProviderTypeFacebook:
-		return "your_facebook_client_id"
-	default:
-		return ""
-	}
-}
-
-func (s *Service) getClientSecret(providerType ProviderType) string {
-	switch providerType {
-	case ProviderTypeTikTok:
-		return "your_tiktok_client_secret"
-	case ProviderTypeInstagram:
-		return "your_instagram_client_secret"
-	case ProviderTypeFacebook:
-		return "your_facebook_client_secret"
-	default:
-		return ""
-	}
-}
-
 func (s *Service) getRedirectURI(providerType ProviderType) string {
-	baseURL := "http://localhost:8080"
+	baseURL := s.config.Server.BaseURL
 	metadata := SupportedProviders[providerType]
 	return baseURL + metadata.RedirectURI
+}
+
+// GetAvailableProviders returns all available provider instances from config
+func (s *Service) GetAvailableProviders() map[string][]config.ProviderInstance {
+	return map[string][]config.ProviderInstance{
+		"tiktok":    s.config.GetAllProviderInstances("tiktok"),
+		"instagram": s.config.GetAllProviderInstances("instagram"),
+		"facebook":  s.config.GetAllProviderInstances("facebook"),
+	}
 }

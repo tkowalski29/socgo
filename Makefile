@@ -1,4 +1,4 @@
-.PHONY: run test lint build clean install-tools
+.PHONY: run test lint build clean install-tools ngrok
 
 run:
 	go run ./cmd

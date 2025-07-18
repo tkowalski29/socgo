@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"reflect"
 
+	"github.com/tkowalski/socgo/internal/config"
 	"github.com/tkowalski/socgo/internal/database"
 	"github.com/tkowalski/socgo/internal/providers"
 )
@@ -100,4 +101,18 @@ func (c *Container) GetProviderService() *providers.ProviderService {
 	}
 
 	return providerService
+}
+
+func (c *Container) GetConfig() *config.Config {
+	service, err := c.Get("config")
+	if err != nil {
+		panic(err)
+	}
+
+	cfg, ok := service.(*config.Config)
+	if !ok {
+		panic("config service is not a *config.Config")
+	}
+
+	return cfg
 }
