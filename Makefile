@@ -1,7 +1,7 @@
 .PHONY: run test lint build clean install-tools ngrok
 
 run:
-	go run ./cmd
+	go run main.go
 
 test:
 	go test ./...
@@ -10,10 +10,7 @@ lint:
 	golangci-lint run
 
 build:
-	go build -o bin/socgo ./cmd
-
-clean:
-	rm -rf bin/
+	go build -o socgo main.go
 
 templ:
 	templ generate

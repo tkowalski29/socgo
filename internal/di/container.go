@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/tkowalski/socgo/internal/config"
+	"github.com/tkowalski/socgo/internal/data/config"
 	"github.com/tkowalski/socgo/internal/database"
-	"github.com/tkowalski/socgo/internal/providers"
+	"github.com/tkowalski/socgo/internal/service/post"
 )
 
 type Container struct {
@@ -89,15 +89,15 @@ func (c *Container) GetDBManager() *database.Manager {
 	return manager
 }
 
-func (c *Container) GetProviderService() *providers.ProviderService {
+func (c *Container) GetProviderService() *post.ProviderService {
 	service, err := c.Get("provider_service")
 	if err != nil {
 		panic(err)
 	}
 
-	providerService, ok := service.(*providers.ProviderService)
+	providerService, ok := service.(*post.ProviderService)
 	if !ok {
-		panic("provider_service is not a *providers.ProviderService")
+		panic("provider_service is not a *post.ProviderService")
 	}
 
 	return providerService

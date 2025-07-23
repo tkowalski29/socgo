@@ -11,14 +11,14 @@ import (
 	"time"
 
 	"github.com/tkowalski/socgo/internal/database"
-	"github.com/tkowalski/socgo/internal/providers"
+	"github.com/tkowalski/socgo/internal/service/post"
 	"github.com/tkowalski/socgo/web/templates"
 )
 
 // WebHandler handles web page requests
 type WebHandler struct {
 	dbManager       *database.Manager
-	providerService *providers.ProviderService
+	providerService *post.ProviderService
 }
 
 // PageData holds common data for all pages
@@ -31,7 +31,7 @@ type PageData struct {
 }
 
 // NewWebHandler creates a new WebHandler instance
-func NewWebHandler(dbManager *database.Manager, providerService *providers.ProviderService) *WebHandler {
+func NewWebHandler(dbManager *database.Manager, providerService *post.ProviderService) *WebHandler {
 	return &WebHandler{
 		dbManager:       dbManager,
 		providerService: providerService,

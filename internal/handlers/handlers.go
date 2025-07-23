@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/tkowalski/socgo/internal/database"
-	"github.com/tkowalski/socgo/internal/providers"
+	"github.com/tkowalski/socgo/internal/service/post"
 )
 
 // Request/Response structs for POST /posts endpoint
@@ -32,13 +32,13 @@ type PostResponse struct {
 }
 
 type HistoryPost struct {
-	ID          uint      `json:"id"`
-	Content     string    `json:"content"`
-	ProviderID  uint      `json:"provider_id"`
+	ID          uint              `json:"id"`
+	Content     string            `json:"content"`
+	ProviderID  uint              `json:"provider_id"`
 	Provider    database.Provider `json:"provider"`
-	ScheduledAt *time.Time `json:"scheduled_at,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	Status      string    `json:"status"`
+	ScheduledAt *time.Time        `json:"scheduled_at,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
+	Status      string            `json:"status"`
 }
 
 type HistoryResponse struct {
@@ -48,9 +48,9 @@ type HistoryResponse struct {
 }
 
 type CalendarDay struct {
-	Day      int  `json:"day"`
-	HasPosts bool `json:"has_posts"`
-	PostCount int `json:"post_count"`
+	Day       int  `json:"day"`
+	HasPosts  bool `json:"has_posts"`
+	PostCount int  `json:"post_count"`
 }
 
 type CalendarResponse struct {
@@ -62,11 +62,11 @@ type CalendarResponse struct {
 // PostHandler handles POST requests for creating posts
 type PostHandler struct {
 	dbManager       *database.Manager
-	providerService *providers.ProviderService
+	providerService *post.ProviderService
 }
 
 // NewPostHandler creates a new PostHandler instance
-func NewPostHandler(dbManager *database.Manager, providerService *providers.ProviderService) *PostHandler {
+func NewPostHandler(dbManager *database.Manager, providerService *post.ProviderService) *PostHandler {
 	return &PostHandler{
 		dbManager:       dbManager,
 		providerService: providerService,
@@ -269,7 +269,7 @@ func (h *PostHandler) HandleHistory(w http.ResponseWriter, r *http.Request) {
 
 	// Convert to history posts
 	var historyPosts []HistoryPost
-	
+
 	// Add published posts
 	for _, post := range posts {
 		historyPosts = append(historyPosts, HistoryPost{
@@ -309,7 +309,7 @@ func (h *PostHandler) HandleHistory(w http.ResponseWriter, r *http.Request) {
 	// Return HTML for HTMX
 	var htmlBuilder strings.Builder
 	htmlBuilder.WriteString(`<div class="space-y-4">`)
-	
+
 	for _, post := range historyPosts {
 		statusClass := "bg-green-100 text-green-800"
 		if post.Status == "pending" {
@@ -336,9 +336,9 @@ func (h *PostHandler) HandleHistory(w http.ResponseWriter, r *http.Request) {
 			</div>
 		`, statusClass, post.Status, post.CreatedAt.Format("Jan 02, 15:04"), scheduledText, post.Content, post.Provider.Name))
 	}
-	
+
 	htmlBuilder.WriteString(`</div>`)
-	
+
 	w.Header().Set("Content-Type", "text/html")
 	if _, err := w.Write([]byte(htmlBuilder.String())); err != nil {
 		log.Printf("Error writing history response: %v", err)
@@ -356,7 +356,7 @@ func (h *PostHandler) HandleCalendar(w http.ResponseWriter, r *http.Request) {
 	// Get year and month parameters
 	yearStr := r.URL.Query().Get("year")
 	monthStr := r.URL.Query().Get("month")
-	
+
 	now := time.Now()
 	year := now.Year()
 	month := int(now.Month())
@@ -389,7 +389,7 @@ func (h *PostHandler) HandleCalendar(w http.ResponseWriter, r *http.Request) {
 		Day   int
 		Count int
 	}
-	
+
 	if err := db.Model(&database.Post{}).
 		Select("EXTRACT(DAY FROM created_at) as day, COUNT(*) as count").
 		Where("user_id = ? AND created_at >= ? AND created_at <= ?", userID, startOfMonth, endOfMonth).
@@ -405,7 +405,7 @@ func (h *PostHandler) HandleCalendar(w http.ResponseWriter, r *http.Request) {
 		Day   int
 		Count int
 	}
-	
+
 	if err := db.Model(&database.ScheduledJob{}).
 		Select("EXTRACT(DAY FROM scheduled_at) as day, COUNT(*) as count").
 		Where("user_id = ? AND scheduled_at >= ? AND scheduled_at <= ?", userID, startOfMonth, endOfMonth).
@@ -419,7 +419,7 @@ func (h *PostHandler) HandleCalendar(w http.ResponseWriter, r *http.Request) {
 	// Create calendar days
 	daysInMonth := endOfMonth.Day()
 	days := make([]CalendarDay, daysInMonth)
-	
+
 	// Initialize all days
 	for i := 0; i < daysInMonth; i++ {
 		days[i] = CalendarDay{
@@ -459,7 +459,7 @@ func (h *PostHandler) HandleCalendar(w http.ResponseWriter, r *http.Request) {
 	// Return HTML calendar grid for HTMX
 	var htmlBuilder strings.Builder
 	htmlBuilder.WriteString(`<div class="grid grid-cols-7 gap-1 text-center">`)
-	
+
 	// Days of week header
 	daysOfWeek := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
 	for _, day := range daysOfWeek {
@@ -493,9 +493,9 @@ func (h *PostHandler) HandleCalendar(w http.ResponseWriter, r *http.Request) {
 			</div>
 		`, dayClass, day.Day, postCountText))
 	}
-	
+
 	htmlBuilder.WriteString(`</div>`)
-	
+
 	w.Header().Set("Content-Type", "text/html")
 	if _, err := w.Write([]byte(htmlBuilder.String())); err != nil {
 		log.Printf("Error writing calendar response: %v", err)
@@ -709,4 +709,3 @@ func (h *PostHandler) HandleCalendarPage(w http.ResponseWriter, r *http.Request)
 		return
 	}
 }
-

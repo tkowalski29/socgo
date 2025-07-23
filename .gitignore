@@ -9,7 +9,7 @@ CLAUDE_*
 socgo
 main
 __debug_bin*
-cmd/data/*
+.data/*
 
 # Configuration files with sensitive data
 config.yml

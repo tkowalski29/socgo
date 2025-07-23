@@ -20,7 +20,7 @@ type Post struct {
 
 type Provider struct {
 	ID        uint           `json:"id" gorm:"primaryKey"`
-	Name      string         `json:"name" gorm:"not null;uniqueIndex"`
+	Name      string         `json:"name" gorm:"not null"`
 	Type      string         `json:"type" gorm:"not null"`
 	Config    string         `json:"config" gorm:"type:text"`
 	UserID    string         `json:"user_id" gorm:"not null;index"`

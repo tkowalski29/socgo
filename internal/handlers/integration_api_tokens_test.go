@@ -8,11 +8,11 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/tkowalski/socgo/internal/config"
+	"github.com/tkowalski/socgo/internal/data/config"
 	"github.com/tkowalski/socgo/internal/database"
-	"github.com/tkowalski/socgo/internal/middleware"
-	"github.com/tkowalski/socgo/internal/oauth"
-	"github.com/tkowalski/socgo/internal/providers"
+	"github.com/tkowalski/socgo/internal/service/oauth"
+	"github.com/tkowalski/socgo/internal/service/post"
+	"github.com/tkowalski/socgo/internal/service/server/middleware"
 )
 
 func TestAPITokenIntegration_EndToEnd(t *testing.T) {
@@ -27,7 +27,7 @@ func TestAPITokenIntegration_EndToEnd(t *testing.T) {
 	// Create oauth service and provider service for testing
 	cfg := &config.Config{}
 	oauthService := oauth.NewService(dbManager, cfg)
-	providerService := providers.NewProviderService(dbManager, oauthService)
+	providerService := post.NewProviderService(dbManager, oauthService)
 	postHandler := NewPostHandler(dbManager, providerService)
 
 	// Create router with routes similar to server setup

@@ -64,12 +64,21 @@ func (m *Manager) createOrOpenDB(userID string) (*gorm.DB, error) {
 }
 
 func (m *Manager) runMigrations(db *gorm.DB) error {
-	return db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&Post{},
 		&Provider{},
 		&ScheduledJob{},
 		&APIToken{},
-	)
+	); err != nil {
+		return err
+	}
+
+	// Add unique index on combination of name and type for providers
+	if err := db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_providers_name_type_unique ON providers(name, type)").Error; err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (m *Manager) CloseDB(userID string) error {

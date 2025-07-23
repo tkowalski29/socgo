@@ -8,10 +8,10 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "github.com/tkowalski/socgo/internal/config"
+import "github.com/tkowalski/socgo/internal/data/config"
 
 type ProvidersData struct {
-	AvailableProviders map[string][]config.ProviderInstance
+	AvailableProviders map[string][]config.ProviderInstance `json:"available_providers"`
 }
 
 func ProvidersContent() templ.Component {
