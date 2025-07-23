@@ -1,0 +1,31 @@
+package social
+
+templ TikTokSettings(providerName string) {
+  <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+    <h3 class="text-lg font-medium text-blue-900 mb-3">TikTok Settings for {providerName}</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-blue-800 mb-2">Visibility</label>
+        <select name={"tiktok_visibility_" + providerName} class="w-full px-3 py-2 border border-blue-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          <option value="public">Public</option>
+          <option value="friends">Friends</option>
+          <option value="private">Private</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-blue-800 mb-2">Allow Comments</label>
+        <select name={"tiktok_comments_" + providerName} class="w-full px-3 py-2 border border-blue-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-blue-800 mb-2">Allow Duets</label>
+        <select name={"tiktok_duets_" + providerName} class="w-full px-3 py-2 border border-blue-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </select>
+      </div>
+    </div>
+  </div>
+} 

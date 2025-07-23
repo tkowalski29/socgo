@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/database"
 	"github.com/tkowalski/socgo/internal/service/post"
 )
@@ -32,13 +33,13 @@ type PostResponse struct {
 }
 
 type HistoryPost struct {
-	ID          uint              `json:"id"`
-	Content     string            `json:"content"`
-	ProviderID  uint              `json:"provider_id"`
-	Provider    database.Provider `json:"provider"`
-	ScheduledAt *time.Time        `json:"scheduled_at,omitempty"`
-	CreatedAt   time.Time         `json:"created_at"`
-	Status      string            `json:"status"`
+	ID          uint                   `json:"id"`
+	Content     string                 `json:"content"`
+	ProviderID  uint                   `json:"provider_id"`
+	Provider    data_database.Provider `json:"provider"`
+	ScheduledAt *time.Time             `json:"scheduled_at,omitempty"`
+	CreatedAt   time.Time              `json:"created_at"`
+	Status      string                 `json:"status"`
 }
 
 type HistoryResponse struct {
@@ -110,7 +111,7 @@ func (h *PostHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate provider exists and is configured
-	var provider database.Provider
+	var provider data_database.Provider
 	if err := db.First(&provider, req.ProviderID).Error; err != nil {
 		http.Error(w, "Provider not found", http.StatusNotFound)
 		return
@@ -141,7 +142,7 @@ func (h *PostHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Save post to database
-		post := database.Post{
+		post := data_database.Post{
 			Content:    req.Content,
 			UserID:     userID,
 			ProviderID: req.ProviderID,
@@ -180,7 +181,7 @@ func (h *PostHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Create scheduled job
-		job := database.ScheduledJob{
+		job := data_database.ScheduledJob{
 			JobType:     "publish_post",
 			PayloadData: req.Content,
 			UserID:      userID,
@@ -239,14 +240,14 @@ func (h *PostHandler) HandleHistory(w http.ResponseWriter, r *http.Request) {
 
 	// Get total count
 	var total int64
-	if err := db.Model(&database.Post{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
+	if err := db.Model(&data_database.Post{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
 		log.Printf("Error counting posts: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	// Get posts with pagination and include scheduled jobs
-	var posts []database.Post
+	var posts []data_database.Post
 	if err := db.Preload("Provider").Where("user_id = ?", userID).
 		Order("created_at DESC").
 		Limit(pageSize).Offset(offset).
@@ -257,7 +258,7 @@ func (h *PostHandler) HandleHistory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get scheduled jobs
-	var scheduledJobs []database.ScheduledJob
+	var scheduledJobs []data_database.ScheduledJob
 	if err := db.Preload("Provider").Where("user_id = ?", userID).
 		Order("scheduled_at DESC").
 		Limit(pageSize).Offset(offset).
@@ -390,7 +391,7 @@ func (h *PostHandler) HandleCalendar(w http.ResponseWriter, r *http.Request) {
 		Count int
 	}
 
-	if err := db.Model(&database.Post{}).
+	if err := db.Model(&data_database.Post{}).
 		Select("EXTRACT(DAY FROM created_at) as day, COUNT(*) as count").
 		Where("user_id = ? AND created_at >= ? AND created_at <= ?", userID, startOfMonth, endOfMonth).
 		Group("EXTRACT(DAY FROM created_at)").
@@ -406,7 +407,7 @@ func (h *PostHandler) HandleCalendar(w http.ResponseWriter, r *http.Request) {
 		Count int
 	}
 
-	if err := db.Model(&database.ScheduledJob{}).
+	if err := db.Model(&data_database.ScheduledJob{}).
 		Select("EXTRACT(DAY FROM scheduled_at) as day, COUNT(*) as count").
 		Where("user_id = ? AND scheduled_at >= ? AND scheduled_at <= ?", userID, startOfMonth, endOfMonth).
 		Group("EXTRACT(DAY FROM scheduled_at)").

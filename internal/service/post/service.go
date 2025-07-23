@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 	data_oauth "github.com/tkowalski/socgo/internal/data/oauth"
 	"github.com/tkowalski/socgo/internal/data/provider"
 	"github.com/tkowalski/socgo/internal/database"
@@ -42,8 +43,20 @@ func (s *ProviderService) PublishContent(ctx context.Context, userID string, pro
 		return "", fmt.Errorf("failed to get provider config: %w", err)
 	}
 
-	// Convert provider name to type
-	providerType := ProviderType(providerName)
+	// Get provider type from database
+	db, err := s.dbManager.GetDB(userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get database: %w", err)
+	}
+
+	var dbProvider data_database.Provider
+	result := db.Where("user_id = ? AND name = ? AND is_active = ?", userID, providerName, true).First(&dbProvider)
+	if result.Error != nil {
+		return "", fmt.Errorf("provider not found: %w", result.Error)
+	}
+
+	// Convert provider type to ProviderType
+	providerType := ProviderType(dbProvider.Type)
 
 	// Create provider instance using factory
 	provider, err := s.factory.CreateProvider(providerType, config)
@@ -68,8 +81,20 @@ func (s *ProviderService) GetPostStatus(ctx context.Context, userID string, prov
 		return "", fmt.Errorf("failed to get provider config: %w", err)
 	}
 
-	// Convert provider name to type
-	providerType := ProviderType(providerName)
+	// Get provider type from database
+	db, err := s.dbManager.GetDB(userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get database: %w", err)
+	}
+
+	var dbProvider data_database.Provider
+	result := db.Where("user_id = ? AND name = ? AND is_active = ?", userID, providerName, true).First(&dbProvider)
+	if result.Error != nil {
+		return "", fmt.Errorf("provider not found: %w", result.Error)
+	}
+
+	// Convert provider type to ProviderType
+	providerType := ProviderType(dbProvider.Type)
 
 	// Create provider instance using factory
 	provider, err := s.factory.CreateProvider(providerType, config)
@@ -94,8 +119,20 @@ func (s *ProviderService) RefreshProviderToken(ctx context.Context, userID strin
 		return fmt.Errorf("failed to get provider config: %w", err)
 	}
 
-	// Convert provider name to type
-	providerType := ProviderType(providerName)
+	// Get provider type from database
+	db, err := s.dbManager.GetDB(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get database: %w", err)
+	}
+
+	var dbProvider data_database.Provider
+	result := db.Where("user_id = ? AND name = ? AND is_active = ?", userID, providerName, true).First(&dbProvider)
+	if result.Error != nil {
+		return fmt.Errorf("provider not found: %w", result.Error)
+	}
+
+	// Convert provider type to ProviderType
+	providerType := ProviderType(dbProvider.Type)
 
 	// Create provider instance using factory
 	provider, err := s.factory.CreateProvider(providerType, config)
@@ -135,8 +172,8 @@ func (s *ProviderService) IsProviderConfigured(userID string, providerName strin
 		return false, fmt.Errorf("failed to get database: %w", err)
 	}
 
-	var provider database.Provider
-	result := db.Where("user_id = ? AND type = ? AND is_active = ?", userID, providerName, true).First(&provider)
+	var provider data_database.Provider
+	result := db.Where("user_id = ? AND name = ? AND is_active = ?", userID, providerName, true).First(&provider)
 	if result.Error != nil {
 		return false, nil // Provider not found or not active
 	}
@@ -151,8 +188,8 @@ func (s *ProviderService) getProviderConfig(ctx context.Context, userID string, 
 		return nil, fmt.Errorf("failed to get database: %w", err)
 	}
 
-	var dbProvider database.Provider
-	result := db.Where("user_id = ? AND type = ? AND is_active = ?", userID, providerName, true).First(&dbProvider)
+	var dbProvider data_database.Provider
+	result := db.Where("user_id = ? AND name = ? AND is_active = ?", userID, providerName, true).First(&dbProvider)
 	if result.Error != nil {
 		return nil, fmt.Errorf("provider not found: %w", result.Error)
 	}
@@ -188,8 +225,8 @@ func (s *ProviderService) updateProviderConfig(ctx context.Context, userID strin
 		return fmt.Errorf("failed to get database: %w", err)
 	}
 
-	var dbProvider database.Provider
-	result := db.Where("user_id = ? AND type = ? AND is_active = ?", userID, providerName, true).First(&dbProvider)
+	var dbProvider data_database.Provider
+	result := db.Where("user_id = ? AND name = ? AND is_active = ?", userID, providerName, true).First(&dbProvider)
 	if result.Error != nil {
 		return fmt.Errorf("provider not found: %w", result.Error)
 	}

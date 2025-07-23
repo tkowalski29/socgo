@@ -10,8 +10,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/tkowalski/socgo/internal/data/config"
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/data/oauth"
-	"github.com/tkowalski/socgo/internal/database"
 )
 
 type Handler struct {
@@ -161,7 +161,7 @@ func (h *Handler) HandleAvailableProviders(w http.ResponseWriter, r *http.Reques
 	h.handleAvailableProvidersHTML(w, availableProviders)
 }
 
-func (h *Handler) handleProvidersJSON(w http.ResponseWriter, providers []database.Provider) {
+func (h *Handler) handleProvidersJSON(w http.ResponseWriter, providers []data_database.Provider) {
 	type ProviderResponse struct {
 		DisplayName  string `json:"display_name"`
 		ProviderType string `json:"provider_type"`
@@ -202,7 +202,7 @@ func (h *Handler) handleProvidersJSON(w http.ResponseWriter, providers []databas
 	}
 }
 
-func (h *Handler) handleProvidersHTML(w http.ResponseWriter, providers []database.Provider) {
+func (h *Handler) handleProvidersHTML(w http.ResponseWriter, providers []data_database.Provider) {
 	w.Header().Set("Content-Type", "text/html")
 
 	if len(providers) == 0 {

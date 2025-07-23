@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/tkowalski/socgo/internal/data/database"
 )
 
 func TestNewManager(t *testing.T) {
@@ -97,7 +99,7 @@ func TestDatabaseOperations_InsertAndRetrieve(t *testing.T) {
 		t.Fatalf("GetDB failed: %v", err)
 	}
 
-	provider := Provider{
+	provider := database.Provider{
 		Name:     "Test Provider",
 		Type:     "twitter",
 		Config:   "{\"api_key\": \"test\"}",
@@ -109,7 +111,7 @@ func TestDatabaseOperations_InsertAndRetrieve(t *testing.T) {
 		t.Fatalf("Failed to create provider: %v", err)
 	}
 
-	var retrievedProvider Provider
+	var retrievedProvider database.Provider
 	if err := db.First(&retrievedProvider, provider.ID).Error; err != nil {
 		t.Fatalf("Failed to retrieve provider: %v", err)
 	}
@@ -118,7 +120,7 @@ func TestDatabaseOperations_InsertAndRetrieve(t *testing.T) {
 		t.Errorf("Expected provider name %s, got %s", provider.Name, retrievedProvider.Name)
 	}
 
-	post := Post{
+	post := database.Post{
 		Content:    "Test post content",
 		Title:      "Test Post",
 		UserID:     userID,
@@ -129,7 +131,7 @@ func TestDatabaseOperations_InsertAndRetrieve(t *testing.T) {
 		t.Fatalf("Failed to create post: %v", err)
 	}
 
-	var retrievedPost Post
+	var retrievedPost database.Post
 	if err := db.Preload("Provider").First(&retrievedPost, post.ID).Error; err != nil {
 		t.Fatalf("Failed to retrieve post: %v", err)
 	}

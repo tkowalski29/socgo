@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/database"
 	"github.com/tkowalski/socgo/internal/service/post"
 	"gorm.io/gorm"
@@ -79,10 +80,10 @@ func (s *Scheduler) processJobs() {
 // processUserJobs processes jobs for a specific user
 func (s *Scheduler) processUserJobs(ctx context.Context, userID string, db *gorm.DB) error {
 	// Get pending jobs that are due
-	var jobs []database.ScheduledJob
+	var jobs []data_database.ScheduledJob
 	now := time.Now()
 
-	result := db.Where("status = ? AND scheduled_at <= ?", database.JobStatusPending, now).
+	result := db.Where("status = ? AND scheduled_at <= ?", data_database.JobStatusPending, now).
 		Preload("Provider").
 		Find(&jobs)
 
@@ -103,11 +104,11 @@ func (s *Scheduler) processUserJobs(ctx context.Context, userID string, db *gorm
 }
 
 // processJob processes a single scheduled job
-func (s *Scheduler) processJob(ctx context.Context, userID string, db *gorm.DB, job *database.ScheduledJob) error {
+func (s *Scheduler) processJob(ctx context.Context, userID string, db *gorm.DB, job *data_database.ScheduledJob) error {
 	log.Printf("Processing job %d: %s for user %s", job.ID, job.JobType, userID)
 
 	// Mark job as executing
-	job.Status = database.JobStatusExecuting
+	job.Status = data_database.JobStatusExecuting
 	job.UpdatedAt = time.Now()
 
 	if err := db.Save(job).Error; err != nil {
@@ -124,7 +125,7 @@ func (s *Scheduler) processJob(ctx context.Context, userID string, db *gorm.DB, 
 }
 
 // processPublishPostJob processes a publish post job
-func (s *Scheduler) processPublishPostJob(ctx context.Context, userID string, db *gorm.DB, job *database.ScheduledJob) error {
+func (s *Scheduler) processPublishPostJob(ctx context.Context, userID string, db *gorm.DB, job *data_database.ScheduledJob) error {
 	// Get provider name from the job
 	if job.Provider.Name == "" {
 		return s.markJobFailed(db, job, "Provider name not found")
@@ -137,7 +138,7 @@ func (s *Scheduler) processPublishPostJob(ctx context.Context, userID string, db
 	}
 
 	// Create post record
-	post := database.Post{
+	post := data_database.Post{
 		Content:    job.PayloadData,
 		UserID:     userID,
 		ProviderID: job.ProviderID,
@@ -151,7 +152,7 @@ func (s *Scheduler) processPublishPostJob(ctx context.Context, userID string, db
 	}
 
 	// Mark job as completed
-	job.Status = database.JobStatusCompleted
+	job.Status = data_database.JobStatusCompleted
 	job.ExecutedAt = &[]time.Time{time.Now()}[0]
 	job.UpdatedAt = time.Now()
 
@@ -164,8 +165,8 @@ func (s *Scheduler) processPublishPostJob(ctx context.Context, userID string, db
 }
 
 // markJobFailed marks a job as failed with error message
-func (s *Scheduler) markJobFailed(db *gorm.DB, job *database.ScheduledJob, errorMsg string) error {
-	job.Status = database.JobStatusFailed
+func (s *Scheduler) markJobFailed(db *gorm.DB, job *data_database.ScheduledJob, errorMsg string) error {
+	job.Status = data_database.JobStatusFailed
 	job.ErrorMsg = errorMsg
 	job.UpdatedAt = time.Now()
 

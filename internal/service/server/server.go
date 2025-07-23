@@ -54,6 +54,7 @@ func New(container *di.Container) http.Handler {
 	r.HandleFunc("/api/stats/scheduled", webHandler.HandleScheduledCount).Methods("GET")
 	r.HandleFunc("/api/stats/monthly", webHandler.HandleMonthlyCount).Methods("GET")
 	r.HandleFunc("/api/providers/options", webHandler.HandleProvidersOptions).Methods("GET")
+	r.HandleFunc("/api/providers/settings", webHandler.HandleProviderSettings).Methods("GET")
 
 	// OAuth routes
 	r.HandleFunc("/connect/{provider}", oauthHandler.HandleConnect).Methods("GET")

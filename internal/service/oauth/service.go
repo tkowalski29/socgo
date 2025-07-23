@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/tkowalski/socgo/internal/data/config"
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/data/oauth"
 	"github.com/tkowalski/socgo/internal/database"
 	"github.com/tkowalski/socgo/internal/social/facebook"
@@ -83,7 +84,7 @@ func (s *Service) saveProviderConfig(userID string, providerType oauth.ProviderT
 		return err
 	}
 
-	provider := &database.Provider{
+	provider := &data_database.Provider{
 		Name:     providerName,
 		Type:     string(providerType),
 		Config:   string(configJSON),
@@ -91,7 +92,7 @@ func (s *Service) saveProviderConfig(userID string, providerType oauth.ProviderT
 		IsActive: true,
 	}
 
-	var existingProvider database.Provider
+	var existingProvider data_database.Provider
 	result := db.Where("user_id = ? AND type = ? AND name = ?", userID, string(providerType), providerName).First(&existingProvider)
 
 	if result.Error == nil {
@@ -102,13 +103,13 @@ func (s *Service) saveProviderConfig(userID string, providerType oauth.ProviderT
 	return db.Create(provider).Error
 }
 
-func (s *Service) GetProviders(userID string) ([]database.Provider, error) {
+func (s *Service) GetProviders(userID string) ([]data_database.Provider, error) {
 	db, err := s.dbManager.GetDB(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	var providers []database.Provider
+	var providers []data_database.Provider
 	err = db.Where("user_id = ? AND is_active = ?", userID, true).Find(&providers).Error
 	return providers, err
 }
@@ -119,7 +120,7 @@ func (s *Service) DisconnectProvider(userID string, providerID uint) error {
 		return err
 	}
 
-	var provider database.Provider
+	var provider data_database.Provider
 	if err := db.First(&provider, providerID).Error; err != nil {
 		return fmt.Errorf("provider not found: %w", err)
 	}

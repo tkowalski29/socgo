@@ -7,7 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/tkowalski/socgo/internal/database"
+	data_database "github.com/tkowalski/socgo/internal/data/database"
+	database "github.com/tkowalski/socgo/internal/database"
 )
 
 func TestAPITokenHandler_HandleCreateToken(t *testing.T) {
@@ -58,7 +59,7 @@ func TestAPITokenHandler_HandleCreateToken(t *testing.T) {
 	}
 
 	var tokenCount int64
-	if err := db.Model(&database.APIToken{}).Count(&tokenCount).Error; err != nil {
+	if err := db.Model(&data_database.APIToken{}).Count(&tokenCount).Error; err != nil {
 		t.Fatalf("Failed to count tokens: %v", err)
 	}
 

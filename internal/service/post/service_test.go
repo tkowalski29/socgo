@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 	data_oauth "github.com/tkowalski/socgo/internal/data/oauth"
 	"github.com/tkowalski/socgo/internal/database"
 	"github.com/tkowalski/socgo/internal/service/oauth"
@@ -20,7 +21,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	}
 
 	// Auto-migrate the schema
-	err = db.AutoMigrate(&database.Provider{})
+	err = db.AutoMigrate(&data_database.Provider{})
 	if err != nil {
 		t.Fatalf("Failed to migrate test database: %v", err)
 	}
@@ -48,7 +49,7 @@ func createTestProvider(t *testing.T, db *gorm.DB, userID, providerName string) 
 	}
 
 	// Create provider record
-	provider := database.Provider{
+	provider := data_database.Provider{
 		Name:      providerName,
 		Type:      providerName,
 		Config:    string(configJSON),

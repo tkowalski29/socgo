@@ -13,9 +13,23 @@ type Post struct {
 	UserID     string         `json:"user_id" gorm:"not null;index"`
 	ProviderID uint           `json:"provider_id" gorm:"index"`
 	Provider   Provider       `json:"provider" gorm:"foreignKey:ProviderID"`
+	Media      []Media        `json:"media" gorm:"foreignKey:PostID"`
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
+}
+
+type Media struct {
+	ID        uint           `json:"id" gorm:"primaryKey"`
+	PostID    uint           `json:"post_id" gorm:"index"`
+	FileName  string         `json:"file_name" gorm:"not null"`
+	FilePath  string         `json:"file_path" gorm:"not null"`
+	FileType  string         `json:"file_type" gorm:"not null"` // image/video
+	FileSize  int64          `json:"file_size"`
+	MimeType  string         `json:"mime_type"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
 }
 
 type Provider struct {

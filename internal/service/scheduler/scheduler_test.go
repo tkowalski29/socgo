@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/tkowalski/socgo/internal/data/config"
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/database"
 	"github.com/tkowalski/socgo/internal/service/oauth"
 	"github.com/tkowalski/socgo/internal/service/post"
@@ -47,7 +48,7 @@ func TestScheduler_E2E(t *testing.T) {
 	}
 
 	// Create test provider
-	provider := database.Provider{
+	provider := data_database.Provider{
 		Name:     "facebook",
 		Type:     "facebook",
 		Config:   `{"access_token":"test_token","token_type":"Bearer","expires_at":"2025-12-31T23:59:59Z"}`,
@@ -60,13 +61,13 @@ func TestScheduler_E2E(t *testing.T) {
 
 	// Create scheduled job set 1 minute in the future
 	scheduleAt := time.Now().Add(1 * time.Minute)
-	job := database.ScheduledJob{
+	job := data_database.ScheduledJob{
 		JobType:     "publish_post",
 		PayloadData: "Test scheduled post content",
 		UserID:      userID,
 		ProviderID:  provider.ID,
 		ScheduledAt: scheduleAt,
-		Status:      database.JobStatusPending,
+		Status:      data_database.JobStatusPending,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -75,13 +76,13 @@ func TestScheduler_E2E(t *testing.T) {
 	}
 
 	// Fast-forward time by creating a job that's already due
-	immediateJob := database.ScheduledJob{
+	immediateJob := data_database.ScheduledJob{
 		JobType:     "publish_post",
 		PayloadData: "Test immediate post content",
 		UserID:      userID,
 		ProviderID:  provider.ID,
 		ScheduledAt: time.Now().Add(-1 * time.Minute), // 1 minute ago
-		Status:      database.JobStatusPending,
+		Status:      data_database.JobStatusPending,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -97,24 +98,24 @@ func TestScheduler_E2E(t *testing.T) {
 	}
 
 	// Verify immediate job was processed
-	var processedJob database.ScheduledJob
+	var processedJob data_database.ScheduledJob
 	if err := db.First(&processedJob, immediateJob.ID).Error; err != nil {
 		t.Fatal(err)
 	}
 
-	if processedJob.Status != database.JobStatusFailed {
+	if processedJob.Status != data_database.JobStatusFailed {
 		// Note: Job will fail because we don't have a real provider configured
 		// This is expected in test environment
 		t.Logf("Job status: %s (expected to fail in test environment)", processedJob.Status)
 	}
 
 	// Verify future job is still pending
-	var futureJob database.ScheduledJob
+	var futureJob data_database.ScheduledJob
 	if err := db.First(&futureJob, job.ID).Error; err != nil {
 		t.Fatal(err)
 	}
 
-	if futureJob.Status != database.JobStatusPending {
+	if futureJob.Status != data_database.JobStatusPending {
 		t.Errorf("Expected future job to remain pending, got: %s", futureJob.Status)
 	}
 

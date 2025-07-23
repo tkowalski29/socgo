@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/database"
 )
 
@@ -57,15 +58,15 @@ func (h *APITokenHandler) HandleCreateToken(w http.ResponseWriter, r *http.Reque
 
 	// Create token payload with user ID and timestamp
 	payload := fmt.Sprintf("%s:%d:%s", userID, time.Now().Unix(), base64.URLEncoding.EncodeToString(randomBytes))
-	
+
 	// Generate HMAC-SHA256 signature
 	mac := hmac.New(sha256.New, h.secretKey)
 	mac.Write([]byte(payload))
 	signature := mac.Sum(nil)
-	
+
 	// Combine payload and signature for the final token
 	token := base64.URLEncoding.EncodeToString([]byte(payload + ":" + base64.URLEncoding.EncodeToString(signature)))
-	
+
 	// Generate hash for storage (SHA256 of the token)
 	tokenHash := sha256.Sum256([]byte(token))
 	tokenHashString := fmt.Sprintf("%x", tokenHash)
@@ -79,7 +80,7 @@ func (h *APITokenHandler) HandleCreateToken(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Save token hash to database
-	apiToken := database.APIToken{
+	apiToken := data_database.APIToken{
 		Hash:      tokenHashString,
 		UserID:    userID,
 		CreatedAt: time.Now(),

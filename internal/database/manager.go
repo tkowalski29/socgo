@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tkowalski/socgo/internal/data/database"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -65,10 +66,11 @@ func (m *Manager) createOrOpenDB(userID string) (*gorm.DB, error) {
 
 func (m *Manager) runMigrations(db *gorm.DB) error {
 	if err := db.AutoMigrate(
-		&Post{},
-		&Provider{},
-		&ScheduledJob{},
-		&APIToken{},
+		&database.Post{},
+		&database.Media{},
+		&database.Provider{},
+		&database.ScheduledJob{},
+		&database.APIToken{},
 	); err != nil {
 		return err
 	}

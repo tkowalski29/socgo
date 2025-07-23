@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/database"
 )
 
@@ -61,7 +62,7 @@ func (m *AuthMiddleware) APIAuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		// Check if token exists and is valid
-		var apiToken database.APIToken
+		var apiToken data_database.APIToken
 		if err := db.Where("hash = ? AND deleted_at IS NULL", tokenHashString).First(&apiToken).Error; err != nil {
 			log.Printf("Invalid token attempt: %v", err)
 			m.writeUnauthorizedResponse(w, "Invalid token")
@@ -77,7 +78,7 @@ func (m *AuthMiddleware) APIAuthMiddleware(next http.Handler) http.Handler {
 
 		// Set user ID in request context for handlers to use
 		// For now, we'll continue with the existing pattern
-		
+
 		// Continue to next handler
 		next.ServeHTTP(w, r)
 	})
@@ -90,7 +91,7 @@ func (m *AuthMiddleware) writeUnauthorizedResponse(w http.ResponseWriter, messag
 		"error":   "Unauthorized",
 		"message": message,
 	}
-	
+
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Error encoding JSON response: %v", err)
 	}

@@ -10,7 +10,11 @@ socgo
 main
 __debug_bin*
 .data/*
+*_templ.go
 
 # Configuration files with sensitive data
 config.yml
 .env
+
+# Uploaded files
+uploads/

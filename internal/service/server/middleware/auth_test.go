@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/database"
 )
 
@@ -27,7 +28,7 @@ func TestAuthMiddleware_APIAuthMiddleware_ValidToken(t *testing.T) {
 		t.Fatalf("Failed to get database: %v", err)
 	}
 
-	apiToken := database.APIToken{
+	apiToken := data_database.APIToken{
 		Hash:      tokenHashString,
 		UserID:    "default_user",
 		CreatedAt: time.Now(),
@@ -71,7 +72,7 @@ func TestAuthMiddleware_APIAuthMiddleware_ValidToken(t *testing.T) {
 	}
 
 	// Verify last_used was updated
-	var updatedToken database.APIToken
+	var updatedToken data_database.APIToken
 	if err := db.First(&updatedToken, apiToken.ID).Error; err != nil {
 		t.Fatalf("Failed to retrieve updated token: %v", err)
 	}
