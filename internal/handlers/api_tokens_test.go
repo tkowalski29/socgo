@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	data_database "github.com/tkowalski/socgo/internal/data/database"
-	database "github.com/tkowalski/socgo/internal/database"
+	database "github.com/tkowalski/socgo/internal/service/database"
 )
 
 func TestAPITokenHandler_HandleCreateToken(t *testing.T) {

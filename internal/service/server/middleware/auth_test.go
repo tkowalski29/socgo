@@ -9,7 +9,7 @@ import (
 	"time"
 
 	data_database "github.com/tkowalski/socgo/internal/data/database"
-	"github.com/tkowalski/socgo/internal/database"
+	"github.com/tkowalski/socgo/internal/service/database"
 )
 
 func TestAuthMiddleware_APIAuthMiddleware_ValidToken(t *testing.T) {

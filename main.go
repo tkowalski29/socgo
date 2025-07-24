@@ -8,8 +8,8 @@ import (
 	"syscall"
 
 	"github.com/tkowalski/socgo/internal/data/config"
-	"github.com/tkowalski/socgo/internal/database"
 	"github.com/tkowalski/socgo/internal/di"
+	"github.com/tkowalski/socgo/internal/service/database"
 	"github.com/tkowalski/socgo/internal/service/oauth"
 	"github.com/tkowalski/socgo/internal/service/post"
 	"github.com/tkowalski/socgo/internal/service/scheduler"

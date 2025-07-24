@@ -10,7 +10,7 @@ import (
 	data_database "github.com/tkowalski/socgo/internal/data/database"
 	data_oauth "github.com/tkowalski/socgo/internal/data/oauth"
 	"github.com/tkowalski/socgo/internal/data/provider"
-	"github.com/tkowalski/socgo/internal/database"
+	"github.com/tkowalski/socgo/internal/service/database"
 	"github.com/tkowalski/socgo/internal/service/oauth"
 )
 

@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	"github.com/tkowalski/socgo/internal/data/config"
-	"github.com/tkowalski/socgo/internal/database"
+	"github.com/tkowalski/socgo/internal/service/database"
 	"github.com/tkowalski/socgo/internal/service/post"
 )
 

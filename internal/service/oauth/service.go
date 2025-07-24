@@ -7,7 +7,7 @@ import (
 	"github.com/tkowalski/socgo/internal/data/config"
 	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/data/oauth"
-	"github.com/tkowalski/socgo/internal/database"
+	"github.com/tkowalski/socgo/internal/service/database"
 	"github.com/tkowalski/socgo/internal/social/facebook"
 	"github.com/tkowalski/socgo/internal/social/instagram"
 	"github.com/tkowalski/socgo/internal/social/tiktok"

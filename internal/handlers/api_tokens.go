@@ -12,7 +12,7 @@ import (
 	"time"
 
 	data_database "github.com/tkowalski/socgo/internal/data/database"
-	"github.com/tkowalski/socgo/internal/database"
+	"github.com/tkowalski/socgo/internal/service/database"
 )
 
 type APITokenHandler struct {
