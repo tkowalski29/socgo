@@ -1,0 +1,116 @@
+/* Post create sidebar styles */
+.post-create-sidebar {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 40% !important;
+  background-color: white !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  border-top: 1px solid #e5e7eb !important;
+  z-index: 9999 !important;
+  transition: transform 0.3s ease-in-out !important;
+  transform: translateY(100%) !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.post-create-sidebar.open {
+  transform: translateY(0) !important;
+}
+
+/* Custom datetime picker styles */
+.custom-datetime-picker {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: none;
+  font-family: monospace;
+  margin-bottom: 0.5rem;
+}
+
+.custom-datetime-picker.show {
+  display: block;
+}
+
+.datetime-header {
+  background: #f3f4f6;
+  padding: 0.5rem;
+  border-bottom: 1px solid #d1d5db;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.datetime-content {
+  padding: 1rem;
+}
+
+.datetime-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  align-items: center;
+}
+
+.datetime-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  min-width: 60px;
+}
+
+.datetime-input {
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  font-family: monospace;
+  text-align: center;
+  width: 60px;
+}
+
+.datetime-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.datetime-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #d1d5db;
+}
+
+.datetime-btn {
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border: 1px solid #d1d5db;
+  background: white;
+}
+
+.datetime-btn.primary {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.datetime-btn:hover {
+  background: #f3f4f6;
+}
+
+.datetime-btn.primary:hover {
+  background: #2563eb;
+} 

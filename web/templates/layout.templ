@@ -17,6 +17,8 @@ templ Layout(data LayoutData) {
 			<title>{ data.Title } - SocGo</title>
 			<script src="https://cdn.tailwindcss.com"></script>
 			<link rel="stylesheet" href="/static/css/app.css?v=1"/>
+			<link rel="stylesheet" href="/static/css/post-sidebar.css?v=1"/>
+			<link rel="stylesheet" href="/static/css/calendar.css?v=1"/>
 
 			<noscript>
 				<style>
@@ -58,6 +60,8 @@ templ Layout(data LayoutData) {
 			</button>
 			
 			<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+			<script src="/static/js/post-sidebar.js?v=1"></script>
+			<script src="/static/js/calendar.js?v=1"></script>
 			<script>
 				// Auto-hide flash messages after 5 seconds
 				const flashMessage = document.getElementById('flash-message');
@@ -68,70 +72,6 @@ templ Layout(data LayoutData) {
 						setTimeout(() => flashMessage.remove(), 500);
 					}, 5000);
 				}
-
-				// Global sidebar functions
-				function openPostSidebar() {
-					const sidebar = document.getElementById('post-sidebar');
-					if (!sidebar) {
-						console.error('Sidebar element not found!');
-						return;
-					}
-					
-					console.log('Sidebar element:', sidebar);
-					console.log('Sidebar position:', sidebar.style.position);
-					console.log('Sidebar top:', sidebar.style.top);
-					console.log('Sidebar height:', sidebar.style.height);
-					console.log('Sidebar przed zmianą:', sidebar.style.transform);
-					sidebar.style.transform = 'translateY(0)';
-					sidebar.style.backgroundColor = 'white';
-					sidebar.style.top = '45%';
-					sidebar.style.bottom = 'auto';
-					console.log('Sidebar po zmianie:', sidebar.style.transform);
-					
-					// Load providers when sidebar opens
-					if (typeof loadProviders === 'function') {
-						loadProviders();
-					}
-					
-					// Focus on content textarea
-					setTimeout(() => {
-						const textarea = document.getElementById('content');
-						if (textarea) {
-							textarea.focus();
-						}
-					}, 300);
-				}
-
-				function closePostSidebar() {
-					const sidebar = document.getElementById('post-sidebar');
-					sidebar.style.transform = 'translateY(-100%)';
-					
-					// Clear form when closing
-					const form = document.getElementById('post-form');
-					if (form) {
-						form.reset();
-						document.getElementById('file-preview').innerHTML = '';
-						document.getElementById('provider-settings-section').classList.add('hidden');
-						document.getElementById('post-result').innerHTML = '';
-					}
-				}
-
-				// Close sidebar when clicking outside
-				document.addEventListener('click', function(e) {
-					const sidebar = document.getElementById('post-sidebar');
-					const navbar = document.querySelector('nav');
-					
-					if (sidebar && !sidebar.contains(e.target) && !navbar.contains(e.target) && !sidebar.classList.contains('translate-y-full')) {
-						closePostSidebar();
-					}
-				});
-
-				// Close sidebar with Escape key
-				document.addEventListener('keydown', function(e) {
-					if (e.key === 'Escape') {
-						closePostSidebar();
-					}
-				});
 			</script>
 		</body>
 	</html>

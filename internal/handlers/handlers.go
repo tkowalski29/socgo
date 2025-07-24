@@ -740,7 +740,7 @@ func (h *PostHandler) renderWeekViewHTML(w http.ResponseWriter, days []WeekDay, 
 				if isFuture {
 					// Show + icon for future empty cells
 					htmlBuilder.WriteString(fmt.Sprintf(`
-						<div class="text-gray-300 text-xs text-center py-4 group cursor-pointer" onclick="openPostSidebarFromCalendar()">
+						<div class="text-gray-300 text-xs text-center py-4 group cursor-pointer" onclick="openPostSidebarWithDateTime('%s', %d)">
 							<div class="opacity-0 group-hover:opacity-100 transition-opacity">
 								<svg class="w-6 h-6 mx-auto text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -749,7 +749,7 @@ func (h *PostHandler) renderWeekViewHTML(w http.ResponseWriter, days []WeekDay, 
 							</div>
 							<div class="group-hover:opacity-0 transition-opacity">-</div>
 						</div>
-					`))
+					`, dayDate.Format("2006-01-02"), hour))
 				} else {
 					htmlBuilder.WriteString(`<div class="text-gray-300 text-xs text-center py-4">-</div>`)
 				}
@@ -781,7 +781,7 @@ func (h *PostHandler) renderWeekViewHTML(w http.ResponseWriter, days []WeekDay, 
 
 					htmlBuilder.WriteString(fmt.Sprintf(`
 						<div class="mb-1 p-1 bg-white border border-gray-200 rounded text-xs shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-							 onclick="showPostSidebar(%d, '%s')">
+							 onclick="showCalendarPostSidebar(%d, '%s')">
 							<div class="flex justify-between items-start mb-1">
 								<span class="px-1 py-0.5 text-xs rounded %s">%s</span>
 								<span class="text-xs text-gray-500">%s</span>
@@ -825,7 +825,7 @@ func (h *PostHandler) renderWeekViewHTML(w http.ResponseWriter, days []WeekDay, 
 
 						htmlBuilder.WriteString(fmt.Sprintf(`
 							<div class="mb-1 p-1 bg-white border border-gray-200 rounded text-xs shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-								 onclick="showPostSidebar(%d, '%s')">
+								 onclick="showCalendarPostSidebar(%d, '%s')">
 								<div class="flex justify-between items-start mb-1">
 									<span class="px-1 py-0.5 text-xs rounded %s">%s</span>
 									<span class="text-xs text-gray-500">%s</span>

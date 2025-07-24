@@ -37,7 +37,6 @@ func New(container *di.Container) http.Handler {
 	r.HandleFunc("/", webHandler.HomePage).Methods("GET")
 	r.HandleFunc("/dashboard", webHandler.DashboardPage).Methods("GET")
 	r.HandleFunc("/providers", webHandler.ProvidersPage).Methods("GET")
-	r.HandleFunc("/posts", webHandler.PostsPage).Methods("GET")
 	r.HandleFunc("/calendar", webHandler.CalendarPage).Methods("GET")
 	r.HandleFunc("/health", handlers.HealthHandler)
 

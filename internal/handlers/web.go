@@ -176,42 +176,6 @@ func (h *WebHandler) ProvidersPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// PostsPage handles the posts page
-func (h *WebHandler) PostsPage(w http.ResponseWriter, r *http.Request) {
-	// Get flash message from query parameters
-	flashMessage := ""
-	flashType := "info"
-	if flashMsg := r.URL.Query().Get("flash"); flashMsg != "" {
-		if decoded, err := url.QueryUnescape(flashMsg); err == nil {
-			flashMessage = decoded
-		} else {
-			flashMessage = flashMsg
-		}
-		flashType = r.URL.Query().Get("flash_type")
-		if flashType == "" {
-			flashType = "info"
-		}
-	}
-
-	// Create layout data
-	layoutData := templates.LayoutData{
-		Title:        "Create Post",
-		CurrentPage:  "posts",
-		FlashMessage: flashMessage,
-		FlashType:    flashType,
-		Content:      templates.PostsContent(),
-	}
-
-	// Render the layout
-	w.Header().Set("Content-Type", "text/html")
-	layoutComponent := templates.Layout(layoutData)
-	if err := layoutComponent.Render(r.Context(), w); err != nil {
-		log.Printf("Error rendering posts page: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-}
-
 // CalendarPage handles the calendar page
 func (h *WebHandler) CalendarPage(w http.ResponseWriter, r *http.Request) {
 	// Get flash message from query parameters
@@ -616,18 +580,20 @@ func (h *WebHandler) HandleProvidersOptions(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	html := `<div class="grid grid-cols-3 gap-3">`
+	html := `<div class="flex flex-wrap gap-2">`
 	for _, provider := range providers {
 		// Check if provider is configured
 		configured, err := h.providerService.IsProviderConfigured(userID, provider.Name)
 		if err != nil || !configured {
 			html += fmt.Sprintf(`
-				<label class="flex flex-col items-center p-3 border border-gray-200 rounded-lg cursor-not-allowed opacity-50">
-					<input type="checkbox" name="providers" value="%d" disabled class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mb-2">
-					<div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center mb-2">
+				<label class="relative group cursor-not-allowed opacity-50">
+					<input type="checkbox" name="providers" value="%d" disabled class="sr-only">
+					<div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center border-2 border-gray-200">
 						<span class="text-white text-xs font-semibold">%s</span>
 					</div>
-					<div class="text-xs text-gray-500 text-center">%s</div>
+					<div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+						%s (nieaktywny)
+					</div>
 				</label>
 			`, provider.ID, strings.ToUpper(provider.Type[:3]), provider.Name)
 		} else {
@@ -641,14 +607,16 @@ func (h *WebHandler) HandleProvidersOptions(w http.ResponseWriter, r *http.Reque
 			case "facebook":
 				iconClass = "bg-blue-600"
 			}
-			
+
 			html += fmt.Sprintf(`
-				<label class="flex flex-col items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-					<input type="checkbox" name="providers" value="%d" data-provider-type="%s" data-provider-name="%s" data-provider-icon="%s" class="provider-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mb-2">
-					<div class="w-8 h-8 %s rounded-full flex items-center justify-center mb-2">
+				<label class="relative group cursor-pointer">
+					<input type="checkbox" name="providers" value="%d" data-provider-type="%s" data-provider-name="%s" data-provider-icon="%s" class="provider-checkbox sr-only">
+					<div class="w-10 h-10 %s rounded-full flex items-center justify-center border-2 border-gray-200 hover:border-blue-300 transition-colors">
 						<span class="text-white text-xs font-semibold">%s</span>
 					</div>
-					<div class="text-xs text-gray-700 text-center">%s</div>
+					<div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+						%s
+					</div>
 				</label>
 			`, provider.ID, provider.Type, provider.Name, iconClass, iconClass, strings.ToUpper(provider.Type[:3]), provider.Name)
 		}
