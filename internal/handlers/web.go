@@ -616,30 +616,41 @@ func (h *WebHandler) HandleProvidersOptions(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	html := `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">`
+	html := `<div class="grid grid-cols-3 gap-3">`
 	for _, provider := range providers {
 		// Check if provider is configured
 		configured, err := h.providerService.IsProviderConfigured(userID, provider.Name)
 		if err != nil || !configured {
 			html += fmt.Sprintf(`
-				<label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-not-allowed opacity-50">
-					<input type="checkbox" name="providers" value="%d" disabled class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-					<div class="ml-3">
-						<div class="text-sm font-medium text-gray-700">%s</div>
-						<div class="text-xs text-gray-500">Not connected</div>
+				<label class="flex flex-col items-center p-3 border border-gray-200 rounded-lg cursor-not-allowed opacity-50">
+					<input type="checkbox" name="providers" value="%d" disabled class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mb-2">
+					<div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center mb-2">
+						<span class="text-white text-xs font-semibold">%s</span>
 					</div>
+					<div class="text-xs text-gray-500 text-center">%s</div>
 				</label>
-			`, provider.ID, provider.Name)
+			`, provider.ID, strings.ToUpper(provider.Type[:3]), provider.Name)
 		} else {
+			// Get provider icon class based on type
+			iconClass := "bg-gray-500"
+			switch provider.Type {
+			case "tiktok":
+				iconClass = "bg-black"
+			case "instagram":
+				iconClass = "bg-gradient-to-r from-purple-500 to-pink-500"
+			case "facebook":
+				iconClass = "bg-blue-600"
+			}
+			
 			html += fmt.Sprintf(`
-				<label class="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-					<input type="checkbox" name="providers" value="%d" data-provider-type="%s" data-provider-name="%s" class="provider-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-					<div class="ml-3">
-						<div class="text-sm font-medium text-gray-700">%s</div>
-						<div class="text-xs text-green-600">Connected</div>
+				<label class="flex flex-col items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+					<input type="checkbox" name="providers" value="%d" data-provider-type="%s" data-provider-name="%s" data-provider-icon="%s" class="provider-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mb-2">
+					<div class="w-8 h-8 %s rounded-full flex items-center justify-center mb-2">
+						<span class="text-white text-xs font-semibold">%s</span>
 					</div>
+					<div class="text-xs text-gray-700 text-center">%s</div>
 				</label>
-			`, provider.ID, provider.Type, provider.Name, provider.Name)
+			`, provider.ID, provider.Type, provider.Name, iconClass, iconClass, strings.ToUpper(provider.Type[:3]), provider.Name)
 		}
 	}
 	html += `</div>`

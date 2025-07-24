@@ -37,7 +37,7 @@ func Layout(data LayoutData) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"no-js\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"no-js\" style=\"overflow-x: hidden;\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -50,7 +50,7 @@ func Layout(data LayoutData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - SocGo</title><script src=\"https://cdn.tailwindcss.com\"></script><link rel=\"stylesheet\" href=\"/static/css/app.css\"><noscript><style>\n\t\t\t\t\t.js-only { display: none !important; }\n\t\t\t\t\t.htmx-indicator { display: none !important; }\n\t\t\t\t</style></noscript></head><body class=\"bg-gray-100 min-h-screen\"><script>\n\t\t\t\t// Remove no-js class if JavaScript is enabled\n\t\t\t\tdocument.documentElement.classList.remove('no-js');\n\t\t\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - SocGo</title><script src=\"https://cdn.tailwindcss.com\"></script><link rel=\"stylesheet\" href=\"/static/css/app.css?v=1\"><noscript><style>\n\t\t\t\t\t.js-only { display: none !important; }\n\t\t\t\t\t.htmx-indicator { display: none !important; }\n\t\t\t\t</style></noscript></head><body class=\"bg-gray-100 min-h-screen\" style=\"overflow-x: hidden;\"><script>\n\t\t\t\t// Remove no-js class if JavaScript is enabled\n\t\t\t\tdocument.documentElement.classList.remove('no-js');\n\t\t\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -88,7 +88,7 @@ func Layout(data LayoutData) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.FlashMessage)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout.templ`, Line: 38, Col: 25}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout.templ`, Line: 39, Col: 25}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -103,7 +103,15 @@ func Layout(data LayoutData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</main><script src=\"https://unpkg.com/htmx.org@1.9.10\"></script><script>\n\t\t\t\t// Auto-hide flash messages after 5 seconds\n\t\t\t\tconst flashMessage = document.getElementById('flash-message');\n\t\t\t\tif (flashMessage) {\n\t\t\t\t\tsetTimeout(() => {\n\t\t\t\t\t\tflashMessage.style.transition = 'opacity 0.5s';\n\t\t\t\t\t\tflashMessage.style.opacity = '0';\n\t\t\t\t\t\tsetTimeout(() => flashMessage.remove(), 500);\n\t\t\t\t\t}, 5000);\n\t\t\t\t}\n\t\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</main><!-- Global Post Sidebar -->")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = PostSidebar().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<!-- Floating Action Button --><button onclick=\"openPostSidebar()\" class=\"fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-110 z-40\" title=\"Utwórz nowy post\"><svg class=\"w-6 h-6 mx-auto\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 4v16m8-8H4\"></path></svg></button><script src=\"https://unpkg.com/htmx.org@1.9.10\"></script><script>\n\t\t\t\t// Auto-hide flash messages after 5 seconds\n\t\t\t\tconst flashMessage = document.getElementById('flash-message');\n\t\t\t\tif (flashMessage) {\n\t\t\t\t\tsetTimeout(() => {\n\t\t\t\t\t\tflashMessage.style.transition = 'opacity 0.5s';\n\t\t\t\t\t\tflashMessage.style.opacity = '0';\n\t\t\t\t\t\tsetTimeout(() => flashMessage.remove(), 500);\n\t\t\t\t\t}, 5000);\n\t\t\t\t}\n\n\t\t\t\t// Global sidebar functions\n\t\t\t\tfunction openPostSidebar() {\n\t\t\t\t\tconst sidebar = document.getElementById('post-sidebar');\n\t\t\t\t\tif (!sidebar) {\n\t\t\t\t\t\tconsole.error('Sidebar element not found!');\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\t\n\t\t\t\t\tconsole.log('Sidebar element:', sidebar);\n\t\t\t\t\tconsole.log('Sidebar position:', sidebar.style.position);\n\t\t\t\t\tconsole.log('Sidebar top:', sidebar.style.top);\n\t\t\t\t\tconsole.log('Sidebar height:', sidebar.style.height);\n\t\t\t\t\tconsole.log('Sidebar przed zmianą:', sidebar.style.transform);\n\t\t\t\t\tsidebar.style.transform = 'translateY(0)';\n\t\t\t\t\tsidebar.style.backgroundColor = 'white';\n\t\t\t\t\tsidebar.style.top = '45%';\n\t\t\t\t\tsidebar.style.bottom = 'auto';\n\t\t\t\t\tconsole.log('Sidebar po zmianie:', sidebar.style.transform);\n\t\t\t\t\t\n\t\t\t\t\t// Load providers when sidebar opens\n\t\t\t\t\tif (typeof loadProviders === 'function') {\n\t\t\t\t\t\tloadProviders();\n\t\t\t\t\t}\n\t\t\t\t\t\n\t\t\t\t\t// Focus on content textarea\n\t\t\t\t\tsetTimeout(() => {\n\t\t\t\t\t\tconst textarea = document.getElementById('content');\n\t\t\t\t\t\tif (textarea) {\n\t\t\t\t\t\t\ttextarea.focus();\n\t\t\t\t\t\t}\n\t\t\t\t\t}, 300);\n\t\t\t\t}\n\n\t\t\t\tfunction closePostSidebar() {\n\t\t\t\t\tconst sidebar = document.getElementById('post-sidebar');\n\t\t\t\t\tsidebar.style.transform = 'translateY(-100%)';\n\t\t\t\t\t\n\t\t\t\t\t// Clear form when closing\n\t\t\t\t\tconst form = document.getElementById('post-form');\n\t\t\t\t\tif (form) {\n\t\t\t\t\t\tform.reset();\n\t\t\t\t\t\tdocument.getElementById('file-preview').innerHTML = '';\n\t\t\t\t\t\tdocument.getElementById('provider-settings-section').classList.add('hidden');\n\t\t\t\t\t\tdocument.getElementById('post-result').innerHTML = '';\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\t// Close sidebar when clicking outside\n\t\t\t\tdocument.addEventListener('click', function(e) {\n\t\t\t\t\tconst sidebar = document.getElementById('post-sidebar');\n\t\t\t\t\tconst navbar = document.querySelector('nav');\n\t\t\t\t\t\n\t\t\t\t\tif (sidebar && !sidebar.contains(e.target) && !navbar.contains(e.target) && !sidebar.classList.contains('translate-y-full')) {\n\t\t\t\t\t\tclosePostSidebar();\n\t\t\t\t\t}\n\t\t\t\t});\n\n\t\t\t\t// Close sidebar with Escape key\n\t\t\t\tdocument.addEventListener('keydown', function(e) {\n\t\t\t\t\tif (e.key === 'Escape') {\n\t\t\t\t\t\tclosePostSidebar();\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

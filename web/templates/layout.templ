@@ -10,13 +10,14 @@ type LayoutData struct {
 
 templ Layout(data LayoutData) {
 	<!DOCTYPE html>
-	<html lang="en" class="no-js">
+	<html lang="en" class="no-js" style="overflow-x: hidden;">
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>{ data.Title } - SocGo</title>
 			<script src="https://cdn.tailwindcss.com"></script>
-			<link rel="stylesheet" href="/static/css/app.css"/>
+			<link rel="stylesheet" href="/static/css/app.css?v=1"/>
+
 			<noscript>
 				<style>
 					.js-only { display: none !important; }
@@ -24,7 +25,7 @@ templ Layout(data LayoutData) {
 				</style>
 			</noscript>
 		</head>
-		<body class="bg-gray-100 min-h-screen">
+		<body class="bg-gray-100 min-h-screen" style="overflow-x: hidden;">
 			<script>
 				// Remove no-js class if JavaScript is enabled
 				document.documentElement.classList.remove('no-js');
@@ -42,6 +43,20 @@ templ Layout(data LayoutData) {
 				@data.Content
 			</main>
 			
+			<!-- Global Post Sidebar -->
+			@PostSidebar()
+			
+			<!-- Floating Action Button -->
+			<button 
+				onclick="openPostSidebar()"
+				class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-110 z-40"
+				title="Utwórz nowy post"
+			>
+				<svg class="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+				</svg>
+			</button>
+			
 			<script src="https://unpkg.com/htmx.org@1.9.10"></script>
 			<script>
 				// Auto-hide flash messages after 5 seconds
@@ -53,6 +68,70 @@ templ Layout(data LayoutData) {
 						setTimeout(() => flashMessage.remove(), 500);
 					}, 5000);
 				}
+
+				// Global sidebar functions
+				function openPostSidebar() {
+					const sidebar = document.getElementById('post-sidebar');
+					if (!sidebar) {
+						console.error('Sidebar element not found!');
+						return;
+					}
+					
+					console.log('Sidebar element:', sidebar);
+					console.log('Sidebar position:', sidebar.style.position);
+					console.log('Sidebar top:', sidebar.style.top);
+					console.log('Sidebar height:', sidebar.style.height);
+					console.log('Sidebar przed zmianą:', sidebar.style.transform);
+					sidebar.style.transform = 'translateY(0)';
+					sidebar.style.backgroundColor = 'white';
+					sidebar.style.top = '45%';
+					sidebar.style.bottom = 'auto';
+					console.log('Sidebar po zmianie:', sidebar.style.transform);
+					
+					// Load providers when sidebar opens
+					if (typeof loadProviders === 'function') {
+						loadProviders();
+					}
+					
+					// Focus on content textarea
+					setTimeout(() => {
+						const textarea = document.getElementById('content');
+						if (textarea) {
+							textarea.focus();
+						}
+					}, 300);
+				}
+
+				function closePostSidebar() {
+					const sidebar = document.getElementById('post-sidebar');
+					sidebar.style.transform = 'translateY(-100%)';
+					
+					// Clear form when closing
+					const form = document.getElementById('post-form');
+					if (form) {
+						form.reset();
+						document.getElementById('file-preview').innerHTML = '';
+						document.getElementById('provider-settings-section').classList.add('hidden');
+						document.getElementById('post-result').innerHTML = '';
+					}
+				}
+
+				// Close sidebar when clicking outside
+				document.addEventListener('click', function(e) {
+					const sidebar = document.getElementById('post-sidebar');
+					const navbar = document.querySelector('nav');
+					
+					if (sidebar && !sidebar.contains(e.target) && !navbar.contains(e.target) && !sidebar.classList.contains('translate-y-full')) {
+						closePostSidebar();
+					}
+				});
+
+				// Close sidebar with Escape key
+				document.addEventListener('keydown', function(e) {
+					if (e.key === 'Escape') {
+						closePostSidebar();
+					}
+				});
 			</script>
 		</body>
 	</html>

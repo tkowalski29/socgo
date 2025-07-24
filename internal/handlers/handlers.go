@@ -601,7 +601,7 @@ func (h *PostHandler) HandleWeekView(w http.ResponseWriter, r *http.Request) {
 		postDate := post.CreatedAt.Truncate(24 * time.Hour)
 		startDateTruncated := startDate.Truncate(24 * time.Hour)
 		dayIndex := int(postDate.Sub(startDateTruncated).Hours() / 24)
-		
+
 		if dayIndex >= 0 && dayIndex < 7 {
 			hour := post.CreatedAt.Hour()
 			days[dayIndex].Hours[hour] = append(days[dayIndex].Hours[hour], WeekPost{
@@ -627,7 +627,7 @@ func (h *PostHandler) HandleWeekView(w http.ResponseWriter, r *http.Request) {
 		jobDate := job.ScheduledAt.Truncate(24 * time.Hour)
 		startDateTruncated := startDate.Truncate(24 * time.Hour)
 		dayIndex := int(jobDate.Sub(startDateTruncated).Hours() / 24)
-		
+
 		if dayIndex >= 0 && dayIndex < 7 {
 			hour := job.ScheduledAt.Hour()
 			days[dayIndex].Hours[hour] = append(days[dayIndex].Hours[hour], WeekPost{
@@ -739,8 +739,8 @@ func (h *PostHandler) renderWeekViewHTML(w http.ResponseWriter, days []WeekDay, 
 			if !exists || len(posts) == 0 {
 				if isFuture {
 					// Show + icon for future empty cells
-					htmlBuilder.WriteString(`
-						<div class="text-gray-300 text-xs text-center py-4 group">
+					htmlBuilder.WriteString(fmt.Sprintf(`
+						<div class="text-gray-300 text-xs text-center py-4 group cursor-pointer" onclick="openPostSidebarFromCalendar()">
 							<div class="opacity-0 group-hover:opacity-100 transition-opacity">
 								<svg class="w-6 h-6 mx-auto text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -749,7 +749,7 @@ func (h *PostHandler) renderWeekViewHTML(w http.ResponseWriter, days []WeekDay, 
 							</div>
 							<div class="group-hover:opacity-0 transition-opacity">-</div>
 						</div>
-					`)
+					`))
 				} else {
 					htmlBuilder.WriteString(`<div class="text-gray-300 text-xs text-center py-4">-</div>`)
 				}

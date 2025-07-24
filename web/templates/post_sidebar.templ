@@ -1,0 +1,388 @@
+package templates
+
+templ PostSidebar() {
+  <div id="post-sidebar" style="position: fixed; top: 0; left: 0; right: 0; height: 40%; background-color: white; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border-bottom: 1px solid #e5e7eb; transform: translateY(-100%); z-index: 9999; transition: transform 0.3s ease-in-out;">
+    <div class="h-full flex flex-col">
+      <!-- Header -->
+      <div class="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50">
+        <h3 class="text-lg font-semibold text-gray-900">Utwórz nowy post</h3>
+        <button 
+          onclick="closePostSidebar()"
+          class="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="flex-1 flex overflow-hidden">
+        <!-- Left Side - Content & Media -->
+        <div class="w-1/2 p-4 border-r border-gray-200 overflow-y-auto">
+          <form 
+            id="post-form"
+            hx-post="/posts" 
+            hx-encoding="multipart/form-data" 
+            hx-target="#post-result" 
+            hx-swap="innerHTML"
+            class="space-y-4"
+          >
+            <!-- Text Content -->
+            <div>
+              <label for="content" class="block text-sm font-medium text-gray-700 mb-2">
+                Treść posta *
+              </label>
+              <textarea
+                id="content"
+                name="content"
+                rows="6"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                placeholder="Co chcesz opublikować?"
+                required
+              ></textarea>
+              <p class="mt-1 text-sm text-gray-500">Maksymalnie 2200 znaków</p>
+            </div>
+
+            <!-- Media Upload -->
+            <div>
+              <label for="media" class="block text-sm font-medium text-gray-700 mb-2">
+                Media (opcjonalnie)
+              </label>
+              <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
+                <input
+                  type="file"
+                  id="media"
+                  name="media"
+                  multiple
+                  accept="image/*,video/*"
+                  class="hidden"
+                  onchange="handleFileSelect(this)"
+                />
+                <label for="media" class="cursor-pointer">
+                  <div class="space-y-2">
+                    <svg class="mx-auto h-8 w-8 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="text-gray-600">
+                      <span class="font-medium">Kliknij aby dodać</span> lub przeciągnij
+                    </div>
+                    <p class="text-xs text-gray-500">PNG, JPG, GIF, MP4 do 10MB każdy</p>
+                  </div>
+                </label>
+              </div>
+              <div id="file-preview" class="mt-3 grid grid-cols-3 gap-2"></div>
+            </div>
+
+            <!-- Publish Options -->
+            <div class="border-t pt-4">
+              <div class="flex items-center space-x-4">
+                <label class="flex items-center">
+                  <input
+                    type="radio"
+                    name="publish_type"
+                    value="now"
+                    checked
+                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <span class="ml-2 text-sm font-medium text-gray-700">Opublikuj teraz</span>
+                </label>
+                <label class="flex items-center">
+                  <input
+                    type="radio"
+                    name="publish_type"
+                    value="scheduled"
+                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <span class="ml-2 text-sm font-medium text-gray-700">Zaplanuj</span>
+                </label>
+              </div>
+              
+              <div id="schedule-input" class="hidden mt-3">
+                <input
+                  type="datetime-local"
+                  name="schedule_at"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Right Side - Provider Selection & Settings -->
+        <div class="w-1/2 p-4 overflow-y-auto">
+          <!-- Provider Selection -->
+          <div class="mb-6">
+            <h4 class="text-sm font-medium text-gray-700 mb-3">Wybierz platformy *</h4>
+            <div id="providers-container" class="grid grid-cols-3 gap-3">
+              <div class="flex items-center justify-center py-4">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span class="ml-2 text-xs text-gray-600">Ładowanie...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Provider Settings Tabs -->
+          <div id="provider-settings-section" class="hidden">
+            <h4 class="text-sm font-medium text-gray-700 mb-3">Ustawienia platform</h4>
+            <div id="provider-tabs" class="mb-4">
+              <!-- Tabs will be generated here -->
+            </div>
+            <div id="provider-settings-container" class="space-y-4">
+              <!-- Provider settings will be loaded here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer with Submit Button -->
+      <div class="p-4 border-t border-gray-200 bg-gray-50">
+        <div class="flex justify-between items-center">
+          <div id="post-result" class="text-sm"></div>
+          <div class="flex space-x-3">
+            <button
+              type="button"
+              onclick="closePostSidebar()"
+              class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              Anuluj
+            </button>
+            <button
+              type="submit"
+              form="post-form"
+              class="px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              id="submit-btn"
+            >
+              <span class="flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                </svg>
+                Opublikuj
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Handle file selection and preview
+    function handleFileSelect(input) {
+      const preview = document.getElementById('file-preview');
+      preview.innerHTML = '';
+      
+      if (input.files) {
+        Array.from(input.files).forEach((file, index) => {
+          const reader = new FileReader();
+          const previewItem = document.createElement('div');
+          previewItem.className = 'relative group';
+          
+          reader.onload = function(e) {
+            const isVideo = file.type.startsWith('video/');
+            const isImage = file.type.startsWith('image/');
+            
+            if (isImage) {
+              previewItem.innerHTML = `
+                <img src="${e.target.result}" alt="${file.name}" class="w-full h-16 object-cover rounded-lg">
+                <button type="button" onclick="removeFile(${index})" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">
+                  ×
+                </button>
+              `;
+            } else if (isVideo) {
+              previewItem.innerHTML = `
+                <video src="${e.target.result}" class="w-full h-16 object-cover rounded-lg"></video>
+                <button type="button" onclick="removeFile(${index})" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">
+                  ×
+                </button>
+              `;
+            }
+          };
+          
+          reader.readAsDataURL(file);
+          preview.appendChild(previewItem);
+        });
+      }
+    }
+
+    // Remove file from preview
+    function removeFile(index) {
+      const input = document.getElementById('media');
+      const dt = new DataTransfer();
+      
+      Array.from(input.files).forEach((file, i) => {
+        if (i !== index) {
+          dt.items.add(file);
+        }
+      });
+      
+      input.files = dt.files;
+      handleFileSelect(input);
+    }
+
+    // Handle publish type change
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('input[name="publish_type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+          const scheduleInput = document.getElementById('schedule-input');
+          if (this.value === 'scheduled') {
+            scheduleInput.classList.remove('hidden');
+          } else {
+            scheduleInput.classList.add('hidden');
+          }
+        });
+      });
+    });
+
+    // Handle provider selection and load settings
+    function handleProviderSelection() {
+      const selectedProviders = document.querySelectorAll('.provider-checkbox:checked');
+      const settingsSection = document.getElementById('provider-settings-section');
+      const settingsContainer = document.getElementById('provider-settings-container');
+      const tabsContainer = document.getElementById('provider-tabs');
+      
+      if (selectedProviders.length > 0) {
+        settingsSection.classList.remove('hidden');
+        settingsContainer.innerHTML = '';
+        tabsContainer.innerHTML = '';
+        
+        // Create tabs
+        selectedProviders.forEach((checkbox, index) => {
+          const providerType = checkbox.getAttribute('data-provider-type');
+          const providerName = checkbox.getAttribute('data-provider-name');
+          const providerIcon = checkbox.getAttribute('data-provider-icon');
+          
+          const tab = document.createElement('button');
+          tab.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${index === 0 ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`;
+          tab.textContent = providerName;
+          tab.onclick = () => switchProviderTab(index, providerType, providerName);
+          tabsContainer.appendChild(tab);
+          
+          // Load first provider settings by default
+          if (index === 0) {
+            loadProviderSettings(providerType, providerName, settingsContainer);
+          }
+        });
+      } else {
+        settingsSection.classList.add('hidden');
+      }
+    }
+
+    function switchProviderTab(index, providerType, providerName) {
+      const tabs = document.querySelectorAll('#provider-tabs button');
+      const settingsContainer = document.getElementById('provider-settings-container');
+      
+      // Update tab styles
+      tabs.forEach((tab, i) => {
+        if (i === index) {
+          tab.className = 'px-3 py-2 text-sm font-medium rounded-md transition-colors bg-blue-100 text-blue-700';
+        } else {
+          tab.className = 'px-3 py-2 text-sm font-medium rounded-md transition-colors text-gray-500 hover:text-gray-700';
+        }
+      });
+      
+      // Load provider settings
+      loadProviderSettings(providerType, providerName, settingsContainer);
+    }
+
+    function loadProviderSettings(providerType, providerName, container) {
+      container.innerHTML = '<div class="flex items-center justify-center py-4"><div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div><span class="ml-2 text-sm text-gray-600">Ładowanie ustawień...</span></div>';
+      
+      fetch(`/api/providers/settings?type=${providerType}&name=${encodeURIComponent(providerName)}`)
+        .then(response => response.text())
+        .then(html => {
+          container.innerHTML = html;
+        })
+        .catch(error => {
+          console.error('Error loading provider settings:', error);
+          container.innerHTML = '<p class="text-red-600 text-sm">Błąd ładowania ustawień</p>';
+        });
+    }
+
+    // Load providers on sidebar open
+    function loadProviders() {
+      fetch('/api/providers/options')
+        .then(response => response.text())
+        .then(html => {
+          const container = document.getElementById('providers-container');
+          container.innerHTML = html;
+          
+          // Add event listeners to provider checkboxes
+          document.querySelectorAll('.provider-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', handleProviderSelection);
+          });
+        })
+        .catch(error => {
+          console.error('Error loading providers:', error);
+          document.getElementById('providers-container').innerHTML = 
+            '<p class="text-red-600 text-sm">Błąd ładowania platform</p>';
+        });
+    }
+
+    // Function to add another post
+    function addAnotherPost() {
+      const form = document.getElementById('post-form');
+      const resultDiv = document.getElementById('post-result');
+      
+      // Clear form and result
+      form.reset();
+      document.getElementById('file-preview').innerHTML = '';
+      document.getElementById('provider-settings-section').classList.add('hidden');
+      resultDiv.innerHTML = '';
+      
+      // Focus on content textarea
+      setTimeout(() => {
+        const textarea = document.getElementById('content');
+        if (textarea) {
+          textarea.focus();
+        }
+      }, 100);
+    }
+
+    // Form submission handling
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.getElementById('post-form');
+      const resultDiv = document.getElementById('post-result');
+      const submitBtn = document.getElementById('submit-btn');
+      
+      form.addEventListener('htmx:beforeRequest', function() {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>Wysyłanie...';
+        resultDiv.innerHTML = '';
+      });
+      
+      form.addEventListener('htmx:afterRequest', function(event) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>Opublikuj';
+        
+        if (event.detail.successful) {
+          resultDiv.innerHTML = `
+            <div class="text-green-600 text-sm mb-2">✓ Post został wysłany pomyślnie!</div>
+            <div class="flex space-x-2">
+              <button
+                type="button"
+                onclick="closePostSidebar()"
+                class="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              >
+                Zamknij
+              </button>
+              <button
+                type="button"
+                onclick="addAnotherPost()"
+                class="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+              >
+                Dodaj kolejny
+              </button>
+            </div>
+          `;
+          // Clear form
+          form.reset();
+          document.getElementById('file-preview').innerHTML = '';
+          document.getElementById('provider-settings-section').classList.add('hidden');
+        } else {
+          resultDiv.innerHTML = '<div class="text-red-600 text-sm">✗ Błąd podczas wysyłania posta</div>';
+        }
+      });
+    });
+  </script>
+} 

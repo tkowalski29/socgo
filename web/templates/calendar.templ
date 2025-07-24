@@ -62,12 +62,12 @@ templ CalendarContent() {
       </div>
 
       <!-- Right Sidebar for Post Details - Overlapping -->
-      <div id="post-sidebar" class="fixed top-0 right-0 h-full w-96 bg-white shadow-xl border-l border-gray-200 transform translate-x-full transition-transform duration-300 ease-in-out z-50">
+      <div id="calendar-post-sidebar" class="fixed top-0 right-0 h-full w-96 bg-white shadow-xl border-l border-gray-200 transform translate-x-full transition-transform duration-300 ease-in-out z-50">
         <div class="p-6 h-full overflow-y-auto">
           <div class="flex justify-between items-start mb-4">
             <h3 id="sidebar-title" class="text-lg font-semibold text-gray-900">Szczegóły posta</h3>
             <button 
-              onclick="closePostSidebar()"
+              onclick="closeCalendarPostSidebar()"
               class="text-gray-400 hover:text-gray-600 transition-colors"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,7 +147,7 @@ templ CalendarContent() {
       }
 
       function showPostSidebar(postId, postType) {
-        const sidebar = document.getElementById('post-sidebar');
+        const sidebar = document.getElementById('calendar-post-sidebar');
         const content = document.getElementById('sidebar-content');
         
         // Load post details
@@ -162,7 +162,14 @@ templ CalendarContent() {
       }
 
       function closePostSidebar() {
-        const sidebar = document.getElementById('post-sidebar');
+        const sidebar = document.getElementById('calendar-post-sidebar');
+        // Slide out to right
+        sidebar.classList.remove('translate-x-0');
+        sidebar.classList.add('translate-x-full');
+      }
+
+      function closeCalendarPostSidebar() {
+        const sidebar = document.getElementById('calendar-post-sidebar');
         // Slide out to right
         sidebar.classList.remove('translate-x-0');
         sidebar.classList.add('translate-x-full');
@@ -183,7 +190,7 @@ templ CalendarContent() {
             }
           }).then(() => {
             loadWeekView(); // Reload calendar
-            closePostSidebar();
+            closeCalendarPostSidebar();
           });
         }
       }
@@ -201,20 +208,27 @@ templ CalendarContent() {
         }
       }
 
+      // Function to open global post sidebar from calendar
+      function openPostSidebarFromCalendar() {
+        if (typeof openPostSidebar === 'function') {
+          openPostSidebar();
+        }
+      }
+
       // Close sidebar when clicking outside
       document.addEventListener('click', function(e) {
-        const sidebar = document.getElementById('post-sidebar');
+        const sidebar = document.getElementById('calendar-post-sidebar');
         const calendarContainer = document.getElementById('calendar-container');
         
         if (!sidebar.contains(e.target) && !calendarContainer.contains(e.target) && !sidebar.classList.contains('translate-x-full')) {
-          closePostSidebar();
+          closeCalendarPostSidebar();
         }
       });
 
       // Close sidebar with Escape key
       document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-          closePostSidebar();
+          closeCalendarPostSidebar();
         }
       });
     </script>
