@@ -7,12 +7,12 @@ type SettingsProvidersData struct {
 }
 
 templ SettingsProvidersContent() {
-	<div class="max-w-4xl mx-auto">
+	<div class="w-full max-w-none min-w-0">
 		<h1 class="text-4xl font-bold mb-6">Providerzy</h1>
 		<p class="mb-8 text-gray-600">Połącz swoje konta w mediach społecznościowych, aby rozpocząć publikowanie treści.</p>
 		
 		<!-- Connect New Provider Section -->
-		<div class="bg-white rounded-lg shadow-md p-6 mb-8">
+		<div class="bg-white rounded-lg shadow-md p-6 mb-8 w-full">
 			<h2 class="text-xl font-semibold mb-4">Połącz nowego providera</h2>
 			<div id="providers-grid" hx-get="/api/providers/available" hx-trigger="load" hx-swap="innerHTML">
 				<div class="flex items-center justify-center py-8">
@@ -23,7 +23,7 @@ templ SettingsProvidersContent() {
 		</div>
 		
 		<!-- Connected Providers Section -->
-		<div class="bg-white rounded-lg shadow-md p-6">
+		<div class="bg-white rounded-lg shadow-md p-6 w-full">
 			<h2 class="text-xl font-semibold mb-4">Połączone konta</h2>
 			<div id="providers-list" hx-get="/api/providers" hx-trigger="load, refresh-providers from:body" hx-swap="innerHTML">
 				<div class="flex items-center justify-center py-8">

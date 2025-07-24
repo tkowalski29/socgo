@@ -20,6 +20,7 @@ import (
 	"github.com/tkowalski/socgo/internal/service/database"
 	"github.com/tkowalski/socgo/internal/service/post"
 	"github.com/tkowalski/socgo/web/templates"
+	"github.com/tkowalski/socgo/web/templates/component"
 	"github.com/tkowalski/socgo/web/templates/social"
 )
 
@@ -353,22 +354,6 @@ func (h *WebHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		}
 		h.redirectWithFlash(w, r, "/posts", message, flashType)
 	}
-}
-
-// responseCapture captures response data
-type responseCapture struct {
-	http.ResponseWriter
-	statusCode int
-	body       []byte
-}
-
-func (rc *responseCapture) WriteHeader(statusCode int) {
-	rc.statusCode = statusCode
-}
-
-func (rc *responseCapture) Write(data []byte) (int, error) {
-	rc.body = append(rc.body, data...)
-	return len(data), nil
 }
 
 // StatsHandlers for dashboard stats
@@ -708,7 +693,7 @@ func (h *WebHandler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user tokens for user section
-	var userTokens []templates.UserToken
+	var userTokens []component.UserToken
 	if activeSection == "user" {
 		userID := h.getUserID(r)
 		db, err := h.dbManager.GetDB(userID)
@@ -716,7 +701,7 @@ func (h *WebHandler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 			var apiTokens []data_database.APIToken
 			if err := db.Where("user_id = ?", userID).Find(&apiTokens).Error; err == nil {
 				for _, token := range apiTokens {
-					userToken := templates.UserToken{
+					userToken := component.UserToken{
 						ID:        fmt.Sprintf("%d", token.ID),
 						Name:      fmt.Sprintf("Token #%d", token.ID),
 						CreatedAt: token.CreatedAt.Format("2006-01-02 15:04:05"),

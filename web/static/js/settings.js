@@ -18,16 +18,19 @@ function generateNewToken() {
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
+        if (data.token) {
             // Show the token to the user
             const token = data.token;
-            const message = `Token został wygenerowany!\n\nNazwa: ${token.name}\nToken: ${token.token}\n\nSkopiuj ten token i zapisz go w bezpiecznym miejscu. Nie będzie możliwe jego ponowne wyświetlenie.`;
+            const message = `Token został wygenerowany!\n\nNazwa: ${tokenName}\nToken: ${token}\n\nSkopiuj ten token i zapisz go w bezpiecznym miejscu. Nie będzie możliwe jego ponowne wyświetlenie.`;
             alert(message);
+            
+            // Trigger success event
+            document.body.dispatchEvent(new Event('token-generated'));
             
             // Reload the page to show the new token
             window.location.reload();
         } else {
-            alert('Błąd podczas generowania tokenu: ' + data.error);
+            alert('Błąd podczas generowania tokenu: ' + (data.message || 'Nieznany błąd'));
         }
     })
     .catch(error => {
@@ -51,10 +54,13 @@ function deleteToken(tokenId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // Trigger success event
+            document.body.dispatchEvent(new Event('token-deleted'));
+            
             // Reload the page to update the token list
             window.location.reload();
         } else {
-            alert('Błąd podczas usuwania tokenu: ' + data.error);
+            alert('Błąd podczas usuwania tokenu: ' + (data.message || 'Nieznany błąd'));
         }
     })
     .catch(error => {

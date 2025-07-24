@@ -4,14 +4,7 @@ import "github.com/tkowalski/socgo/web/templates/component"
 
 type SettingsData struct {
 	ActiveSection string
-	UserTokens    []UserToken
-}
-
-type UserToken struct {
-	ID        string
-	Name      string
-	CreatedAt string
-	LastUsed  string
+	UserTokens    []component.UserToken
 }
 
 templ SettingsContent(data SettingsData) {
@@ -48,9 +41,7 @@ templ SettingsContent(data SettingsData) {
 		<!-- Main Content Area -->
 		<div class="flex-1">
 			if data.ActiveSection == "user" {
-				<div class="bg-white rounded-lg shadow-md p-6">
-					@UserSection(data.UserTokens)
-				</div>
+				@component.SettingsUserContent(component.SettingsUserData{UserTokens: data.UserTokens})
 			} else if data.ActiveSection == "providers" {
 				@component.SettingsProvidersContent()
 			}
@@ -58,60 +49,7 @@ templ SettingsContent(data SettingsData) {
 	</div>
 }
 
-templ UserSection(tokens []UserToken) {
-	<div>
-		<h1 class="text-2xl font-bold text-gray-900 mb-6">Ustawienia użytkownika</h1>
-		
-		<!-- API Tokens Section -->
-		<div class="mb-8">
-			<div class="flex justify-between items-center mb-4">
-				<h2 class="text-lg font-semibold text-gray-800">Tokeny API</h2>
-				<button 
-					onclick="generateNewToken()"
-					class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-				>
-					Generuj nowy token
-				</button>
-			</div>
-			
-			if len(tokens) == 0 {
-				<div class="text-center py-8 text-gray-500">
-					<svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
-					</svg>
-					<p>Brak wygenerowanych tokenów API</p>
-					<p class="text-sm">Kliknij "Generuj nowy token" aby utworzyć pierwszy token</p>
-				</div>
-			} else {
-				<div class="bg-gray-50 rounded-lg p-4">
-					<div class="space-y-3">
-						for _, token := range tokens {
-							<div class="flex justify-between items-center p-3 bg-white rounded-md border">
-								<div>
-									<h3 class="font-medium text-gray-900">{ token.Name }</h3>
-									<p class="text-sm text-gray-500">Utworzony: { token.CreatedAt }</p>
-									if token.LastUsed != "" {
-										<p class="text-sm text-gray-500">Ostatnie użycie: { token.LastUsed }</p>
-									}
-								</div>
-								<button 
-									data-token-id={ token.ID }
-									onclick="deleteToken(this.dataset.tokenId)"
-									class="text-red-600 hover:text-red-800 transition-colors"
-									title="Usuń token"
-								>
-									<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-									</svg>
-								</button>
-							</div>
-						}
-					</div>
-				</div>
-			}
-		</div>
-	</div>
-}
+
 
 
 
