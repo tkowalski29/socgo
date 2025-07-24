@@ -15,6 +15,7 @@ func New(container *di.Container) http.Handler {
 
 	// Static files
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
 
 	// OAuth service and handler
 	oauthService := oauth.NewService(container.GetDBManager(), container.GetConfig())
@@ -47,6 +48,9 @@ func New(container *di.Container) http.Handler {
 	r.HandleFunc("/posts/history", postHandler.HandleHistory).Methods("GET")
 	r.HandleFunc("/posts/calendar", postHandler.HandleCalendar).Methods("GET")
 	r.HandleFunc("/posts/calendar-page", postHandler.HandleCalendarPage).Methods("GET")
+	r.HandleFunc("/api/calendar/week", postHandler.HandleWeekView).Methods("GET")
+	r.HandleFunc("/api/posts/{id}", postHandler.HandlePostDetails).Methods("GET")
+	r.HandleFunc("/api/posts/{id}", postHandler.HandleDeletePost).Methods("DELETE")
 
 	// Stats endpoints for dashboard
 	r.HandleFunc("/api/stats/providers", webHandler.HandleProvidersCount).Methods("GET")

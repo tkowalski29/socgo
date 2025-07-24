@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	data_database "github.com/tkowalski/socgo/internal/data/database"
 	provider_pkg "github.com/tkowalski/socgo/internal/data/provider"
 	"github.com/tkowalski/socgo/internal/service/database"
@@ -693,8 +694,8 @@ func (h *WebHandler) getUserID(r *http.Request) string {
 func (h *WebHandler) handleMediaUpload(files []*multipart.FileHeader, userID string) ([]data_database.Media, error) {
 	var mediaFiles []data_database.Media
 
-	// Create upload directory for user
-	uploadDir := filepath.Join("uploads", userID)
+	// Create upload directory
+	uploadDir := "uploads"
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create upload directory: %w", err)
 	}
@@ -711,8 +712,10 @@ func (h *WebHandler) handleMediaUpload(files []*multipart.FileHeader, userID str
 			return nil, fmt.Errorf("file %s has unsupported type: %s", fileHeader.Filename, contentType)
 		}
 
-		// Generate unique filename
-		filename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), filepath.Base(fileHeader.Filename))
+		// Generate unique filename with UUID
+		fileExt := filepath.Ext(fileHeader.Filename)
+		uniqueID := uuid.New().String()
+		filename := fmt.Sprintf("%s%s", uniqueID, fileExt)
 		filePath := filepath.Join(uploadDir, filename)
 
 		// Save file
@@ -740,7 +743,7 @@ func (h *WebHandler) handleMediaUpload(files []*multipart.FileHeader, userID str
 
 		// Create media record
 		media := data_database.Media{
-			FileName:  fileHeader.Filename,
+			FileName:  filename, // Store the UUID filename
 			FilePath:  filePath,
 			FileType:  fileType,
 			FileSize:  fileHeader.Size,
