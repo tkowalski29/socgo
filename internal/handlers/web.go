@@ -68,114 +68,6 @@ func (h *WebHandler) redirectWithFlash(w http.ResponseWriter, r *http.Request, u
 	http.Redirect(w, r, url+connector+flashParam[1:], http.StatusSeeOther)
 }
 
-// HomePage handles the home page
-func (h *WebHandler) HomePage(w http.ResponseWriter, r *http.Request) {
-	// Get flash message from query parameters
-	flashMessage := ""
-	flashType := "info"
-	if flashMsg := r.URL.Query().Get("flash"); flashMsg != "" {
-		if decoded, err := url.QueryUnescape(flashMsg); err == nil {
-			flashMessage = decoded
-		} else {
-			flashMessage = flashMsg
-		}
-		flashType = r.URL.Query().Get("flash_type")
-		if flashType == "" {
-			flashType = "info"
-		}
-	}
-
-	// Create layout data
-	layoutData := templates.LayoutData{
-		Title:        "Home",
-		CurrentPage:  "home",
-		FlashMessage: flashMessage,
-		FlashType:    flashType,
-		Content:      templates.HomeContent(),
-	}
-
-	// Render the layout
-	w.Header().Set("Content-Type", "text/html")
-	layoutComponent := templates.Layout(layoutData)
-	if err := layoutComponent.Render(r.Context(), w); err != nil {
-		log.Printf("Error rendering home page: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-}
-
-// DashboardPage handles the dashboard page
-func (h *WebHandler) DashboardPage(w http.ResponseWriter, r *http.Request) {
-	// Get flash message from query parameters
-	flashMessage := ""
-	flashType := "info"
-	if flashMsg := r.URL.Query().Get("flash"); flashMsg != "" {
-		if decoded, err := url.QueryUnescape(flashMsg); err == nil {
-			flashMessage = decoded
-		} else {
-			flashMessage = flashMsg
-		}
-		flashType = r.URL.Query().Get("flash_type")
-		if flashType == "" {
-			flashType = "info"
-		}
-	}
-
-	// Create layout data
-	layoutData := templates.LayoutData{
-		Title:        "Dashboard",
-		CurrentPage:  "dashboard",
-		FlashMessage: flashMessage,
-		FlashType:    flashType,
-		Content:      templates.DashboardContent(),
-	}
-
-	// Render the layout
-	w.Header().Set("Content-Type", "text/html")
-	layoutComponent := templates.Layout(layoutData)
-	if err := layoutComponent.Render(r.Context(), w); err != nil {
-		log.Printf("Error rendering dashboard page: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-}
-
-// ProvidersPage handles the providers page
-func (h *WebHandler) ProvidersPage(w http.ResponseWriter, r *http.Request) {
-	// Get flash message from query parameters
-	flashMessage := ""
-	flashType := "info"
-	if flashMsg := r.URL.Query().Get("flash"); flashMsg != "" {
-		if decoded, err := url.QueryUnescape(flashMsg); err == nil {
-			flashMessage = decoded
-		} else {
-			flashMessage = flashMsg
-		}
-		flashType = r.URL.Query().Get("flash_type")
-		if flashType == "" {
-			flashType = "info"
-		}
-	}
-
-	// Create layout data
-	layoutData := templates.LayoutData{
-		Title:        "Providers",
-		CurrentPage:  "providers",
-		FlashMessage: flashMessage,
-		FlashType:    flashType,
-		Content:      templates.ProvidersContent(),
-	}
-
-	// Render the layout
-	w.Header().Set("Content-Type", "text/html")
-	layoutComponent := templates.Layout(layoutData)
-	if err := layoutComponent.Render(r.Context(), w); err != nil {
-		log.Printf("Error rendering providers page: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-}
-
 // CalendarPage handles the calendar page
 func (h *WebHandler) CalendarPage(w http.ResponseWriter, r *http.Request) {
 	// Get flash message from query parameters
@@ -790,4 +682,76 @@ func (h *WebHandler) extractProviderSettings(form url.Values) map[string]map[str
 	}
 
 	return settings
+}
+
+// SettingsPage handles the settings page
+func (h *WebHandler) SettingsPage(w http.ResponseWriter, r *http.Request) {
+	// Get flash message from query parameters
+	flashMessage := ""
+	flashType := "info"
+	if flashMsg := r.URL.Query().Get("flash"); flashMsg != "" {
+		if decoded, err := url.QueryUnescape(flashMsg); err == nil {
+			flashMessage = decoded
+		} else {
+			flashMessage = flashMsg
+		}
+		flashType = r.URL.Query().Get("flash_type")
+		if flashType == "" {
+			flashType = "info"
+		}
+	}
+
+	// Get active section from query parameters (default to "user")
+	activeSection := r.URL.Query().Get("section")
+	if activeSection == "" {
+		activeSection = "user"
+	}
+
+	// Get user tokens for user section
+	var userTokens []templates.UserToken
+	if activeSection == "user" {
+		userID := h.getUserID(r)
+		db, err := h.dbManager.GetDB(userID)
+		if err == nil {
+			var apiTokens []data_database.APIToken
+			if err := db.Where("user_id = ?", userID).Find(&apiTokens).Error; err == nil {
+				for _, token := range apiTokens {
+					userToken := templates.UserToken{
+						ID:        fmt.Sprintf("%d", token.ID),
+						Name:      fmt.Sprintf("Token #%d", token.ID),
+						CreatedAt: token.CreatedAt.Format("2006-01-02 15:04:05"),
+						LastUsed:  "",
+					}
+					if token.LastUsed != nil {
+						userToken.LastUsed = token.LastUsed.Format("2006-01-02 15:04:05")
+					}
+					userTokens = append(userTokens, userToken)
+				}
+			}
+		}
+	}
+
+	// Create settings data
+	settingsData := templates.SettingsData{
+		ActiveSection: activeSection,
+		UserTokens:    userTokens,
+	}
+
+	// Create layout data
+	layoutData := templates.LayoutData{
+		Title:        "Ustawienia",
+		CurrentPage:  "settings",
+		FlashMessage: flashMessage,
+		FlashType:    flashType,
+		Content:      templates.SettingsContent(settingsData),
+	}
+
+	// Render the layout
+	w.Header().Set("Content-Type", "text/html")
+	layoutComponent := templates.Layout(layoutData)
+	if err := layoutComponent.Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering settings page: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }

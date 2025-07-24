@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/mux"
 	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/service/database"
 )
@@ -100,6 +101,55 @@ func (h *APITokenHandler) HandleCreateToken(w http.ResponseWriter, r *http.Reque
 	}
 
 	h.writeJSONResponse(w, response, http.StatusCreated)
+}
+
+// HandleDeleteToken handles DELETE requests to remove API tokens
+func (h *APITokenHandler) HandleDeleteToken(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract token ID from URL path using gorilla/mux
+	vars := mux.Vars(r)
+	tokenID := vars["id"]
+	if tokenID == "" {
+		http.Error(w, "Token ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Get user ID
+	userID := h.getUserID(r)
+
+	// Get database instance for user
+	db, err := h.dbManager.GetDB(userID)
+	if err != nil {
+		log.Printf("Error getting database: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Delete the token
+	var apiToken data_database.APIToken
+	result := db.Where("id = ? AND user_id = ?", tokenID, userID).Delete(&apiToken)
+	if result.Error != nil {
+		log.Printf("Error deleting API token: %v", result.Error)
+		http.Error(w, "Failed to delete API token", http.StatusInternalServerError)
+		return
+	}
+
+	if result.RowsAffected == 0 {
+		http.Error(w, "Token not found", http.StatusNotFound)
+		return
+	}
+
+	// Return success response
+	response := map[string]interface{}{
+		"success": true,
+		"message": "API token deleted successfully",
+	}
+
+	h.writeJSONResponse(w, response, http.StatusOK)
 }
 
 func (h *APITokenHandler) getUserID(r *http.Request) string {

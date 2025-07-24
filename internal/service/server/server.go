@@ -34,10 +34,8 @@ func New(container *di.Container) http.Handler {
 	authMiddleware := middleware.NewAuthMiddleware(container.GetDBManager())
 
 	// Web routes (UI pages)
-	r.HandleFunc("/", webHandler.HomePage).Methods("GET")
-	r.HandleFunc("/dashboard", webHandler.DashboardPage).Methods("GET")
-	r.HandleFunc("/providers", webHandler.ProvidersPage).Methods("GET")
 	r.HandleFunc("/calendar", webHandler.CalendarPage).Methods("GET")
+	r.HandleFunc("/settings", webHandler.SettingsPage).Methods("GET")
 	r.HandleFunc("/health", handlers.HealthHandler)
 
 	// Web form handlers
@@ -68,6 +66,7 @@ func New(container *di.Container) http.Handler {
 
 	// API token generation endpoint (public)
 	r.HandleFunc("/api-tokens", apiTokenHandler.HandleCreateToken).Methods("POST")
+	r.HandleFunc("/api/tokens/{id}", apiTokenHandler.HandleDeleteToken).Methods("DELETE")
 
 	// Protected API routes with auth middleware
 	apiRouter := r.PathPrefix("/api").Subrouter()
