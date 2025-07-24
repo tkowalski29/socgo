@@ -119,7 +119,7 @@ func (f *OAuth) GetAvailableAccounts(accessToken string) ([]oauth.AccountInfo, e
 
 	q := req.URL.Query()
 	q.Add("access_token", accessToken)
-	q.Add("fields", "id,name,category")
+	q.Add("fields", "id,name,category,access_token")
 	req.URL.RawQuery = q.Encode()
 
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -136,9 +136,10 @@ func (f *OAuth) GetAvailableAccounts(accessToken string) ([]oauth.AccountInfo, e
 
 	var response struct {
 		Data []struct {
-			ID       string `json:"id"`
-			Name     string `json:"name"`
-			Category string `json:"category"`
+			ID          string `json:"id"`
+			Name        string `json:"name"`
+			Category    string `json:"category"`
+			AccessToken string `json:"access_token"`
 		} `json:"data"`
 	}
 
@@ -149,10 +150,11 @@ func (f *OAuth) GetAvailableAccounts(accessToken string) ([]oauth.AccountInfo, e
 	accounts := make([]oauth.AccountInfo, len(response.Data))
 	for i, page := range response.Data {
 		accounts[i] = oauth.AccountInfo{
-			ID:       page.ID,
-			Name:     page.Name,
-			Type:     "page",
-			Category: page.Category,
+			ID:              page.ID,
+			Name:            page.Name,
+			Type:            "page",
+			Category:        page.Category,
+			PageAccessToken: page.AccessToken,
 		}
 	}
 
@@ -172,8 +174,14 @@ func (f *OAuth) SaveAllAccounts(userID string, providerName string, token *oauth
 
 	// Save each page as a separate provider
 	for _, account := range accounts {
+		// Use page access token if available, otherwise fall back to user token
+		accessToken := account.PageAccessToken
+		if accessToken == "" {
+			accessToken = token.AccessToken
+		}
+
 		accountToken := &oauth.ProviderConfig{
-			AccessToken: token.AccessToken,
+			AccessToken: accessToken,
 			TokenType:   token.TokenType,
 			ExpiresAt:   token.ExpiresAt,
 			UserInfo: &oauth.UserInfo{

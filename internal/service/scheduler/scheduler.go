@@ -2,10 +2,12 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
 	data_database "github.com/tkowalski/socgo/internal/data/database"
+	"github.com/tkowalski/socgo/internal/data/provider"
 	"github.com/tkowalski/socgo/internal/service/database"
 	"github.com/tkowalski/socgo/internal/service/post"
 	"gorm.io/gorm"
@@ -132,18 +134,52 @@ func (s *Scheduler) processPublishPostJob(ctx context.Context, userID string, db
 	}
 
 	// Publish content using provider service
-	postID, err := s.providerService.PublishContent(ctx, userID, job.Provider.Name, job.PayloadData)
+	postID, err := s.providerService.PublishContent(ctx, userID, job.Provider.Name, job.PayloadData, []provider.Media{}, nil)
 	if err != nil {
+		// Save failed post with error information
+		post := data_database.Post{
+			Content:      job.PayloadData,
+			UserID:       userID,
+			ProviderID:   job.ProviderID,
+			Status:       data_database.PostStatusFailed,
+			ErrorMessage: err.Error(),
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
+		}
+
+		if err := db.Create(&post).Error; err != nil {
+			log.Printf("Warning: Failed to save failed post record for job %d: %v", job.ID, err)
+		}
+
 		return s.markJobFailed(db, job, "Failed to publish content: "+err.Error())
 	}
 
+	// Extract external ID and URL from postID
+	externalID := postID
+	externalURL := ""
+
+	// For Facebook, postID is the actual Facebook post ID
+	// We can construct the URL: https://www.facebook.com/{postID}
+	if job.Provider.Type == "facebook" && postID != "" {
+		externalURL = fmt.Sprintf("https://www.facebook.com/%s", postID)
+	}
+
+	// Set published time and status
+	now := time.Now()
+	status := data_database.PostStatusPublished
+
 	// Create post record
 	post := data_database.Post{
-		Content:    job.PayloadData,
-		UserID:     userID,
-		ProviderID: job.ProviderID,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		Content:      job.PayloadData,
+		UserID:       userID,
+		ProviderID:   job.ProviderID,
+		ExternalID:   externalID,
+		ExternalURL:  externalURL,
+		PublishedAt:  &now,
+		Status:       status,
+		ErrorMessage: "",
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 
 	if err := db.Create(&post).Error; err != nil {

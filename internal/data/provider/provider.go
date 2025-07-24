@@ -5,11 +5,20 @@ import (
 	"net/http"
 )
 
+// Media represents a media file to be uploaded
+type Media struct {
+	FileName string `json:"file_name"`
+	FilePath string `json:"file_path"`
+	FileType string `json:"file_type"` // image/video
+	FileSize int64  `json:"file_size"`
+	MimeType string `json:"mime_type"`
+}
+
 // Provider defines the interface for social media providers
 type Provider interface {
 	// Publish publishes content to the social media platform
 	// Returns postID on success
-	Publish(ctx context.Context, content string) (postID string, err error)
+	Publish(ctx context.Context, content string, media []Media) (postID string, err error)
 
 	// GetStatus retrieves the status of a published post
 	GetStatus(ctx context.Context, postID string) (status string, err error)
@@ -25,12 +34,13 @@ type HTTPClient interface {
 
 // ProviderConfig contains configuration for a provider
 type ProviderConfig struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-	TokenType    string `json:"token_type"`
-	ExpiresAt    int64  `json:"expires_at"`
-	Scope        string `json:"scope,omitempty"`
-	UserID       string `json:"user_id,omitempty"`
+	AccessToken  string            `json:"access_token"`
+	RefreshToken string            `json:"refresh_token,omitempty"`
+	TokenType    string            `json:"token_type"`
+	ExpiresAt    int64             `json:"expires_at"`
+	Scope        string            `json:"scope,omitempty"`
+	UserID       string            `json:"user_id,omitempty"`
+	Settings     map[string]string `json:"settings,omitempty"`
 }
 
 // PostStatus represents possible post statuses

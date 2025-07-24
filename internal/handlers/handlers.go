@@ -12,6 +12,7 @@ import (
 	"time"
 
 	data_database "github.com/tkowalski/socgo/internal/data/database"
+	provider_pkg "github.com/tkowalski/socgo/internal/data/provider"
 	"github.com/tkowalski/socgo/internal/service/database"
 	"github.com/tkowalski/socgo/internal/service/post"
 )
@@ -134,7 +135,7 @@ func (h *PostHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	// Handle immediate or scheduled posting
 	if req.ScheduleAt == "now" {
 		// Immediate posting
-		postID, err := h.providerService.PublishContent(ctx, userID, provider.Name, req.Content)
+		postID, err := h.providerService.PublishContent(ctx, userID, provider.Name, req.Content, []provider_pkg.Media{}, nil)
 		if err != nil {
 			log.Printf("Error publishing content: %v", err)
 			http.Error(w, "Failed to publish content", http.StatusInternalServerError)

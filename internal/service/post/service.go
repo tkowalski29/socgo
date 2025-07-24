@@ -36,11 +36,16 @@ func NewProviderService(dbManager *database.Manager, oauthService *oauth.Service
 }
 
 // PublishContent publishes content to a specific provider
-func (s *ProviderService) PublishContent(ctx context.Context, userID string, providerName string, content string) (postID string, err error) {
+func (s *ProviderService) PublishContent(ctx context.Context, userID string, providerName string, content string, media []provider.Media, settings map[string]string) (postID string, err error) {
 	// Get provider configuration from database
 	config, err := s.getProviderConfig(ctx, userID, providerName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get provider config: %w", err)
+	}
+
+	// Apply settings to config if provided
+	if settings != nil {
+		config.Settings = settings
 	}
 
 	// Get provider type from database
@@ -65,7 +70,7 @@ func (s *ProviderService) PublishContent(ctx context.Context, userID string, pro
 	}
 
 	// Publish content using provider
-	postID, err = provider.Publish(ctx, content)
+	postID, err = provider.Publish(ctx, content, media)
 	if err != nil {
 		return "", fmt.Errorf("failed to publish content: %w", err)
 	}

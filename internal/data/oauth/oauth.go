@@ -30,11 +30,12 @@ type UserInfo struct {
 }
 
 type AccountInfo struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Username string `json:"username,omitempty"`
-	Type     string `json:"type"`
-	Category string `json:"category,omitempty"`
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Username        string `json:"username,omitempty"`
+	Type            string `json:"type"`
+	Category        string `json:"category,omitempty"`
+	PageAccessToken string `json:"page_access_token,omitempty"`
 }
 
 type ProviderMetadata struct {
@@ -72,7 +73,7 @@ var SupportedProviders = map[ProviderType]ProviderMetadata{
 		AuthURL:     "https://www.facebook.com/v18.0/dialog/oauth",
 		TokenURL:    "https://graph.facebook.com/v18.0/oauth/access_token",
 		UserInfoURL: "https://graph.facebook.com/me",
-		Scopes:      []string{"public_profile", "email", "pages_show_list", "pages_read_engagement"},
+		Scopes:      []string{"public_profile", "email", "pages_show_list", "pages_read_engagement", "pages_manage_posts"},
 		RedirectURI: "/oauth/callback/facebook",
 	},
 }

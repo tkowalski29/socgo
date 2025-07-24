@@ -8,6 +8,7 @@ import (
 
 	data_database "github.com/tkowalski/socgo/internal/data/database"
 	data_oauth "github.com/tkowalski/socgo/internal/data/oauth"
+	data_provider "github.com/tkowalski/socgo/internal/data/provider"
 	"github.com/tkowalski/socgo/internal/service/database"
 	"github.com/tkowalski/socgo/internal/service/oauth"
 	"gorm.io/driver/sqlite"
@@ -115,7 +116,7 @@ func TestProviderService_PublishContent(t *testing.T) {
 			// For now, we'll skip the actual test execution
 			t.Skip("Skipping test - requires database manager mocking")
 
-			postID, err := service.PublishContent(context.Background(), tt.userID, tt.provider, tt.content)
+			postID, err := service.PublishContent(context.Background(), tt.userID, tt.provider, tt.content, []data_provider.Media{}, nil)
 
 			if tt.expectError {
 				if err == nil {

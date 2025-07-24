@@ -7,16 +7,21 @@ import (
 )
 
 type Post struct {
-	ID         uint           `json:"id" gorm:"primaryKey"`
-	Content    string         `json:"content" gorm:"not null"`
-	Title      string         `json:"title"`
-	UserID     string         `json:"user_id" gorm:"not null;index"`
-	ProviderID uint           `json:"provider_id" gorm:"index"`
-	Provider   Provider       `json:"provider" gorm:"foreignKey:ProviderID"`
-	Media      []Media        `json:"media" gorm:"foreignKey:PostID"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
+	ID           uint           `json:"id" gorm:"primaryKey"`
+	Content      string         `json:"content" gorm:"not null"`
+	Title        string         `json:"title"`
+	UserID       string         `json:"user_id" gorm:"not null;index"`
+	ProviderID   uint           `json:"provider_id" gorm:"index"`
+	Provider     Provider       `json:"provider" gorm:"foreignKey:ProviderID"`
+	ExternalID   string         `json:"external_id" gorm:"index"`        // ID posta na platformie zewnętrznej (np. Facebook post ID)
+	ExternalURL  string         `json:"external_url"`                    // URL do posta na platformie zewnętrznej
+	PublishedAt  *time.Time     `json:"published_at"`                    // Data publikacji na platformie zewnętrznej
+	Status       string         `json:"status" gorm:"default:'pending'"` // Status posta: pending, published, failed
+	ErrorMessage string         `json:"error_message"`                   // Komunikat błędu jeśli publikacja się nie powiodła
+	Media        []Media        `json:"media" gorm:"foreignKey:PostID"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
 }
 
 type Media struct {
@@ -73,4 +78,10 @@ const (
 	JobStatusExecuting = "executing"
 	JobStatusCompleted = "completed"
 	JobStatusFailed    = "failed"
+)
+
+const (
+	PostStatusPending   = "pending"
+	PostStatusPublished = "published"
+	PostStatusFailed    = "failed"
 )

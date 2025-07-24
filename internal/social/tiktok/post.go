@@ -26,7 +26,7 @@ func NewTikTokPost(config *provider.ProviderConfig, httpClient provider.HTTPClie
 }
 
 // Publish publishes content to TikTok
-func (p *TikTokPost) Publish(ctx context.Context, content string) (postID string, err error) {
+func (p *TikTokPost) Publish(ctx context.Context, content string, media []provider.Media) (postID string, err error) {
 	// TikTok API endpoint for publishing (mock implementation)
 	url := "https://open-api.tiktok.com/share/video/upload/"
 
@@ -35,6 +35,13 @@ func (p *TikTokPost) Publish(ctx context.Context, content string) (postID string
 		"text":         content,
 		"access_token": p.Config.AccessToken,
 		"timestamp":    time.Now().Unix(),
+	}
+
+	// Add media information if available
+	if len(media) > 0 {
+		// For now, just log that media was provided
+		// TikTok API implementation would need to be expanded
+		payload["media_count"] = len(media)
 	}
 
 	jsonPayload, err := json.Marshal(payload)
@@ -80,16 +87,16 @@ func (p *TikTokPost) Publish(ctx context.Context, content string) (postID string
 		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	if response.Error.Code != "" {
-		return "", fmt.Errorf("TikTok API error: %s - %s", response.Error.Code, response.Error.Message)
+	if response.Error.Message != "" {
+		return "", fmt.Errorf("TikTok API error: %s (code: %s)", response.Error.Message, response.Error.Code)
 	}
 
-	// Return fake postID for mock implementation
+	// Return share ID from response
 	if response.Data.ShareID != "" {
 		return response.Data.ShareID, nil
 	}
 
-	// Generate fake postID for testing
+	// Generate fake postID for testing if no real ID returned
 	return fmt.Sprintf("tiktok_%d", time.Now().UnixNano()), nil
 }
 

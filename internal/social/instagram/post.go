@@ -26,7 +26,7 @@ func NewInstagramPost(config *provider.ProviderConfig, httpClient provider.HTTPC
 }
 
 // Publish publishes content to Instagram
-func (p *InstagramPost) Publish(ctx context.Context, content string) (postID string, err error) {
+func (p *InstagramPost) Publish(ctx context.Context, content string, media []provider.Media) (postID string, err error) {
 	// Instagram Basic Display API endpoint for publishing (mock implementation)
 	url := fmt.Sprintf("https://graph.instagram.com/%s/media", p.Config.UserID)
 
@@ -35,6 +35,13 @@ func (p *InstagramPost) Publish(ctx context.Context, content string) (postID str
 		"caption":      content,
 		"media_type":   "CAROUSEL_ALBUM",
 		"access_token": p.Config.AccessToken,
+	}
+
+	// Add media information if available
+	if len(media) > 0 {
+		// For now, just log that media was provided
+		// Instagram API implementation would need to be expanded
+		payload["media_count"] = len(media)
 	}
 
 	jsonPayload, err := json.Marshal(payload)
@@ -69,9 +76,10 @@ func (p *InstagramPost) Publish(ctx context.Context, content string) (postID str
 	var response struct {
 		ID    string `json:"id"`
 		Error struct {
-			Message string `json:"message"`
-			Type    string `json:"type"`
-			Code    int    `json:"code"`
+			Message   string `json:"message"`
+			Type      string `json:"type"`
+			Code      int    `json:"code"`
+			ErrorCode int    `json:"error_code"`
 		} `json:"error"`
 	}
 
@@ -84,12 +92,12 @@ func (p *InstagramPost) Publish(ctx context.Context, content string) (postID str
 			response.Error.Message, response.Error.Type, response.Error.Code)
 	}
 
-	// Return fake postID for mock implementation
+	// Return post ID from response
 	if response.ID != "" {
 		return response.ID, nil
 	}
 
-	// Generate fake postID for testing
+	// Generate fake postID for testing if no real ID returned
 	return fmt.Sprintf("instagram_%d", time.Now().UnixNano()), nil
 }
 

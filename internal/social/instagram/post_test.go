@@ -94,7 +94,7 @@ func TestInstagramPost_Publish(t *testing.T) {
 			Post := NewInstagramPost(config, mockClient)
 
 			// Test Publish
-			postID, err := Post.Publish(context.Background(), tt.content)
+			postID, err := Post.Publish(context.Background(), tt.content, []provider.Media{})
 
 			// Verify results
 			if tt.expectError {

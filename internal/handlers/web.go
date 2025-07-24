@@ -15,6 +15,7 @@ import (
 	"time"
 
 	data_database "github.com/tkowalski/socgo/internal/data/database"
+	provider_pkg "github.com/tkowalski/socgo/internal/data/provider"
 	"github.com/tkowalski/socgo/internal/service/database"
 	"github.com/tkowalski/socgo/internal/service/post"
 	"github.com/tkowalski/socgo/web/templates"
@@ -356,9 +357,6 @@ func (h *WebHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 
 		// Get provider-specific settings
 		settings := providerSettings[provider.Name]
-		if settings != nil {
-			log.Printf("Provider %s settings: %v", provider.Name, settings)
-		}
 
 		// Create post record
 		post := data_database.Post{
@@ -366,6 +364,7 @@ func (h *WebHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 			UserID:     userID,
 			ProviderID: uint(providerID),
 			Media:      mediaFiles,
+			Status:     data_database.PostStatusPending, // Start with pending status
 			CreatedAt:  time.Now(),
 			UpdatedAt:  time.Now(),
 		}
@@ -394,13 +393,56 @@ func (h *WebHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		} else {
 			// Immediate publishing
 			ctx := context.Background()
-			postID, err := h.providerService.PublishContent(ctx, userID, provider.Name, content)
+
+			// Convert database media to provider media
+			var providerMedia []provider_pkg.Media
+			for _, m := range mediaFiles {
+				providerMedia = append(providerMedia, provider_pkg.Media{
+					FileName: m.FileName,
+					FilePath: m.FilePath,
+					FileType: m.FileType,
+					FileSize: m.FileSize,
+					MimeType: m.MimeType,
+				})
+			}
+
+			postID, err := h.providerService.PublishContent(ctx, userID, provider.Name, content, providerMedia, settings)
 			if err != nil {
 				log.Printf("Error publishing to %s: %v", provider.Name, err)
+
+				// Save failed post with error information
+				post.Status = data_database.PostStatusFailed
+				post.ErrorMessage = err.Error()
+
+				if err := db.Create(&post).Error; err != nil {
+					log.Printf("Error saving failed post: %v", err)
+				}
+
 				results = append(results, fmt.Sprintf("%s: failed to publish", provider.Name))
 				hasErrors = true
 				continue
 			}
+
+			// Extract external ID and URL from postID
+			externalID := postID
+			externalURL := ""
+
+			// For Facebook, postID is the actual Facebook post ID
+			// We can construct the URL: https://www.facebook.com/{postID}
+			if provider.Type == "facebook" && postID != "" {
+				externalURL = fmt.Sprintf("https://www.facebook.com/%s", postID)
+			}
+
+			// Set published time and status
+			now := time.Now()
+			status := data_database.PostStatusPublished
+
+			// Update post with external information
+			post.ExternalID = externalID
+			post.ExternalURL = externalURL
+			post.PublishedAt = &now
+			post.Status = status
+			post.ErrorMessage = ""
 
 			// Save post to database
 			if err := db.Create(&post).Error; err != nil {
