@@ -23,7 +23,7 @@ func New(container *dependency.Container) http.Handler {
 
 	// OAuth service and handler
 	oauthService := oauth.NewService(container.GetDBManager(), container.GetConfig())
-	oauthHandler := oauth.NewHandler(oauthService)
+	oauthHandler := handlers.NewOAuthHandler(oauthService)
 
 	// Post handler (API)
 	postHandler := handlers.NewPostHandler(container.GetDBManager(), container.GetProviderService())

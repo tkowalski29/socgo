@@ -1,4 +1,4 @@
-package oauth
+package handlers
 
 import (
 	"encoding/json"
@@ -11,20 +11,22 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/tkowalski/socgo/internal/data/config"
 	data_database "github.com/tkowalski/socgo/internal/data/database"
-	"github.com/tkowalski/socgo/internal/data/oauth"
+	oauth_data "github.com/tkowalski/socgo/internal/data/oauth"
+	"github.com/tkowalski/socgo/internal/handlers/internal"
+	"github.com/tkowalski/socgo/internal/service/oauth"
 )
 
-type Handler struct {
-	oauthService *Service
+type OAuthHandler struct {
+	oauthService *oauth.Service
 }
 
-func NewHandler(oauthService *Service) *Handler {
-	return &Handler{
+func NewOAuthHandler(oauthService *oauth.Service) *OAuthHandler {
+	return &OAuthHandler{
 		oauthService: oauthService,
 	}
 }
 
-func (h *Handler) HandleConnect(w http.ResponseWriter, r *http.Request) {
+func (h *OAuthHandler) HandleConnect(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	provider := vars["provider"]
 	providerName := r.URL.Query().Get("name")
@@ -32,24 +34,24 @@ func (h *Handler) HandleConnect(w http.ResponseWriter, r *http.Request) {
 	if providerName == "" {
 		// Redirect with error message
 		errorMsg := url.QueryEscape("Provider name is required")
-		http.Redirect(w, r, "/providers?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
 		return
 	}
 
-	providerType := oauth.ProviderType(strings.ToLower(provider))
+	providerType := oauth_data.ProviderType(strings.ToLower(provider))
 
-	if _, exists := oauth.SupportedProviders[providerType]; !exists {
+	if _, exists := oauth_data.SupportedProviders[providerType]; !exists {
 		// Redirect with error message
 		errorMsg := url.QueryEscape(fmt.Sprintf("Unsupported provider: %s", provider))
-		http.Redirect(w, r, "/providers?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
 		return
 	}
 
-	userID := h.getUserID(r)
+	userID := internal.GetUserID(r)
 	if userID == "" {
 		// Redirect with error message
 		errorMsg := url.QueryEscape("User not authenticated")
-		http.Redirect(w, r, "/providers?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -57,23 +59,23 @@ func (h *Handler) HandleConnect(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Redirect with error message
 		errorMsg := url.QueryEscape(fmt.Sprintf("Failed to generate connect URL: %v", err))
-		http.Redirect(w, r, "/providers?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
 		return
 	}
 
 	http.Redirect(w, r, connectURL, http.StatusTemporaryRedirect)
 }
 
-func (h *Handler) HandleCallback(w http.ResponseWriter, r *http.Request) {
+func (h *OAuthHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	provider := vars["provider"]
 
-	providerType := oauth.ProviderType(strings.ToLower(provider))
+	providerType := oauth_data.ProviderType(strings.ToLower(provider))
 
-	if _, exists := oauth.SupportedProviders[providerType]; !exists {
+	if _, exists := oauth_data.SupportedProviders[providerType]; !exists {
 		// Redirect with error message
 		errorMsg := url.QueryEscape(fmt.Sprintf("Unsupported provider: %s", provider))
-		http.Redirect(w, r, "/providers?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -81,7 +83,7 @@ func (h *Handler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if code == "" {
 		// Redirect with error message
 		errorMsg := url.QueryEscape("Authorization code not provided")
-		http.Redirect(w, r, "/providers?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -89,7 +91,7 @@ func (h *Handler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if state == "" {
 		// Redirect with error message
 		errorMsg := url.QueryEscape("State parameter missing")
-		http.Redirect(w, r, "/providers?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -98,7 +100,7 @@ func (h *Handler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if len(stateParts) != 2 {
 		// Redirect with error message
 		errorMsg := url.QueryEscape("Invalid state parameter")
-		http.Redirect(w, r, "/providers?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -109,17 +111,17 @@ func (h *Handler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Redirect with error message
 		errorMsg := url.QueryEscape(fmt.Sprintf("Failed to connect provider: %v", err))
-		http.Redirect(w, r, "/providers?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
 		return
 	}
 
 	// Redirect with success message
 	successMsg := url.QueryEscape(fmt.Sprintf("Successfully connected to %s (%s)", providerName, providerType))
-	http.Redirect(w, r, "/providers?flash="+successMsg+"&flash_type=success", http.StatusTemporaryRedirect)
+	http.Redirect(w, r, "/?flash="+successMsg+"&flash_type=success", http.StatusTemporaryRedirect)
 }
 
-func (h *Handler) HandleProviders(w http.ResponseWriter, r *http.Request) {
-	userID := h.getUserID(r)
+func (h *OAuthHandler) HandleProviders(w http.ResponseWriter, r *http.Request) {
+	userID := internal.GetUserID(r)
 	if userID == "" {
 		// For API requests, return JSON error
 		if strings.Contains(r.Header.Get("Accept"), "application/json") {
@@ -130,7 +132,7 @@ func (h *Handler) HandleProviders(w http.ResponseWriter, r *http.Request) {
 		}
 		// For HTML requests, redirect with error
 		errorMsg := url.QueryEscape("User not authenticated")
-		http.Redirect(w, r, "/providers?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/?flash="+errorMsg+"&flash_type=error", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -150,8 +152,8 @@ func (h *Handler) HandleProviders(w http.ResponseWriter, r *http.Request) {
 	h.handleProvidersHTML(w, providers)
 }
 
-func (h *Handler) HandleAvailableProviders(w http.ResponseWriter, r *http.Request) {
-	userID := h.getUserID(r)
+func (h *OAuthHandler) HandleAvailableProviders(w http.ResponseWriter, r *http.Request) {
+	userID := internal.GetUserID(r)
 	if userID == "" {
 		http.Error(w, "User not authenticated", http.StatusUnauthorized)
 		return
@@ -161,7 +163,7 @@ func (h *Handler) HandleAvailableProviders(w http.ResponseWriter, r *http.Reques
 	h.handleAvailableProvidersHTML(w, availableProviders)
 }
 
-func (h *Handler) handleProvidersJSON(w http.ResponseWriter, providers []data_database.Provider) {
+func (h *OAuthHandler) handleProvidersJSON(w http.ResponseWriter, providers []data_database.Provider) {
 	type ProviderResponse struct {
 		DisplayName  string `json:"display_name"`
 		ProviderType string `json:"provider_type"`
@@ -172,7 +174,7 @@ func (h *Handler) handleProvidersJSON(w http.ResponseWriter, providers []data_da
 	response := make([]ProviderResponse, len(providers))
 	for i, provider := range providers {
 		// Parse config to get user info for display name
-		var config oauth.ProviderConfig
+		var config oauth_data.ProviderConfig
 		displayName := provider.Name
 		if provider.Config != "" {
 			if err := json.Unmarshal([]byte(provider.Config), &config); err == nil {
@@ -202,7 +204,7 @@ func (h *Handler) handleProvidersJSON(w http.ResponseWriter, providers []data_da
 	}
 }
 
-func (h *Handler) handleProvidersHTML(w http.ResponseWriter, providers []data_database.Provider) {
+func (h *OAuthHandler) handleProvidersHTML(w http.ResponseWriter, providers []data_database.Provider) {
 	w.Header().Set("Content-Type", "text/html")
 
 	if len(providers) == 0 {
@@ -225,7 +227,7 @@ func (h *Handler) handleProvidersHTML(w http.ResponseWriter, providers []data_da
 	html := `<div class="space-y-4">`
 	for _, provider := range providers {
 		// Parse config to get user info for display name
-		var config oauth.ProviderConfig
+		var config oauth_data.ProviderConfig
 		displayName := provider.Name
 		if provider.Config != "" {
 			if err := json.Unmarshal([]byte(provider.Config), &config); err == nil {
@@ -280,7 +282,7 @@ func (h *Handler) handleProvidersHTML(w http.ResponseWriter, providers []data_da
 	}
 }
 
-func (h *Handler) handleAvailableProvidersHTML(w http.ResponseWriter, availableProviders map[string][]config.ProviderInstance) {
+func (h *OAuthHandler) handleAvailableProvidersHTML(w http.ResponseWriter, availableProviders map[string][]config.ProviderInstance) {
 	w.Header().Set("Content-Type", "text/html")
 
 	html := `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">`
@@ -344,7 +346,7 @@ func (h *Handler) handleAvailableProvidersHTML(w http.ResponseWriter, availableP
 	}
 }
 
-func (h *Handler) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
+func (h *OAuthHandler) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -358,7 +360,7 @@ func (h *Handler) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := h.getUserID(r)
+	userID := internal.GetUserID(r)
 	if userID == "" {
 		http.Error(w, "User not authenticated", http.StatusUnauthorized)
 		return
@@ -373,10 +375,4 @@ func (h *Handler) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
 	// Return empty response and trigger list refresh for HTMX
 	w.Header().Set("HX-Trigger", "refresh-providers")
 	w.WriteHeader(http.StatusOK)
-}
-
-func (h *Handler) getUserID(r *http.Request) string {
-	// For now, return a default user ID
-	// In a real application, this would extract the user ID from the session or JWT token
-	return "default_user"
 }
