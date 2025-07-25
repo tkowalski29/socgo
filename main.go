@@ -8,8 +8,8 @@ import (
 	"syscall"
 
 	"github.com/tkowalski/socgo/internal/data/config"
-	"github.com/tkowalski/socgo/internal/di"
 	"github.com/tkowalski/socgo/internal/service/database"
+	"github.com/tkowalski/socgo/internal/service/dependency"
 	"github.com/tkowalski/socgo/internal/service/notifications"
 	"github.com/tkowalski/socgo/internal/service/oauth"
 	"github.com/tkowalski/socgo/internal/service/post"
@@ -27,7 +27,7 @@ func main() {
 	log.Printf("Server will start on: %s", cfg.GetServerAddr())
 	log.Printf("Base URL for OAuth: %s", cfg.Server.BaseURL)
 
-	container := di.NewContainer()
+	container := dependency.NewContainer()
 	container.Register("config", cfg)
 
 	dbManager := database.NewManager(cfg.Database.DataDir)

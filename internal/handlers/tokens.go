@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 	data_database "github.com/tkowalski/socgo/internal/data/database"
+	"github.com/tkowalski/socgo/internal/handlers/internal"
 	"github.com/tkowalski/socgo/internal/service/database"
 )
 
@@ -47,7 +48,7 @@ func (h *APITokenHandler) HandleCreateToken(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Get user ID (currently defaults to "default_user")
-	userID := h.getUserID(r)
+	userID := internal.GetUserID(r)
 
 	// Generate random bytes for token
 	randomBytes := make([]byte, 32)
@@ -119,7 +120,7 @@ func (h *APITokenHandler) HandleDeleteToken(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Get user ID
-	userID := h.getUserID(r)
+	userID := internal.GetUserID(r)
 
 	// Get database instance for user
 	db, err := h.dbManager.GetDB(userID)
@@ -150,11 +151,6 @@ func (h *APITokenHandler) HandleDeleteToken(w http.ResponseWriter, r *http.Reque
 	}
 
 	h.writeJSONResponse(w, response, http.StatusOK)
-}
-
-func (h *APITokenHandler) getUserID(r *http.Request) string {
-	// TODO: Implement proper user authentication
-	return "default_user"
 }
 
 func (h *APITokenHandler) writeJSONResponse(w http.ResponseWriter, data interface{}, statusCode int) {
