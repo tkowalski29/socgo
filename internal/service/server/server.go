@@ -32,7 +32,7 @@ func New(container *dependency.Container) http.Handler {
 	calendarHandler := handlers.NewCalendarHandler(container.GetDBManager(), container.GetProviderService())
 
 	// Web handler (UI)
-	settingHandler := handlers.NewSettingHandler(container.GetDBManager(), container.GetProviderService(), container.GetNotificationService())
+	settingHandler := handlers.NewSettingHandler(container.GetDBManager(), container.GetProviderService(), container.GetNotificationService(), oauthService)
 
 	// API token handler
 	apiTokenHandler := handlers.NewAPITokenHandler(container.GetDBManager())
@@ -89,9 +89,9 @@ func New(container *dependency.Container) http.Handler {
 	// OAuth routes
 	r.HandleFunc("/connect/{provider}", oauthHandler.HandleConnect).Methods("GET")
 	r.HandleFunc("/oauth/callback/{provider}", oauthHandler.HandleCallback).Methods("GET")
-	r.HandleFunc("/api/providers/available", oauthHandler.HandleAvailableProviders).Methods("GET")
-	r.HandleFunc("/api/providers", oauthHandler.HandleProviders).Methods("GET")
-	r.HandleFunc("/api/providers/{id}", oauthHandler.HandleDisconnect).Methods("DELETE")
+	r.HandleFunc("/api/providers/available", settingHandler.HandleAvailableProviders).Methods("GET")
+	r.HandleFunc("/api/providers", settingHandler.HandleProviders).Methods("GET")
+	r.HandleFunc("/api/providers/{id}", settingHandler.HandleDisconnect).Methods("DELETE")
 
 	// API token generation endpoint (public)
 	r.HandleFunc("/api-tokens", apiTokenHandler.HandleCreateToken).Methods("POST")

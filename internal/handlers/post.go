@@ -887,6 +887,7 @@ func (h *PostHandler) HandleProviderTabs(w http.ResponseWriter, r *http.Request)
 
 		tabs = append(tabs, component.ProviderTab{
 			Index: i,
+			ID:    provider.ID,
 			Type:  provider.Type,
 			Name:  provider.Name,
 		})

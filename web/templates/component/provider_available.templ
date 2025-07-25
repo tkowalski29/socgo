@@ -1,0 +1,31 @@
+package component
+
+import "github.com/tkowalski/socgo/internal/data/config"
+
+templ ProviderAvailable(providers map[string][]config.ProviderInstance) {
+	<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+		for providerType, providerList := range providers {
+			for _, provider := range providerList {
+				<div class="border rounded-lg p-4 text-center hover:shadow-md transition-shadow">
+					<div class="flex justify-center">
+						@ProviderLogo(ProviderLogoProps{
+							ID:          0, // No ID for available providers
+							Type:        providerType,
+							Name:        provider.Name,
+							Size:        "lg",
+							ShowName:    false,
+							Interactive: false,
+							Selected:    false,
+							Disabled:    false,
+						})
+					</div>
+					<h3 class="font-semibold mb-2 mt-3">{ provider.Name }</h3>
+					<p class="text-sm text-gray-600 mb-3">{ provider.Description }</p>
+					<a href={ "/connect/" + providerType + "?name=" + provider.Name } class="inline-block bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors text-sm">
+						Połącz { provider.Name }
+					</a>
+				</div>
+			}
+		}
+	</div>
+}

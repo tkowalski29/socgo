@@ -2,7 +2,7 @@ package component
 
 templ PostSidebar() {
   <div id="post-create-sidebar" class="post-create-sidebar">
-    <div class="h-full flex flex-col">
+    <div class="h-full flex flex-col min-h-0">
       <!-- Header -->
       <div class="p-4 border-b border-gray-200 bg-gray-50">
         <div class="container mx-auto flex flex-row justify-between items-center">
@@ -21,7 +21,7 @@ templ PostSidebar() {
       </div>
 
       <!-- Content -->
-      <div class="container mx-auto flex flex-row overflow-hidden">
+      <div class="flex-1 container mx-auto flex flex-row overflow-hidden min-h-0">
         <!-- Left Side - Content & Media -->
         <div class="w-1/2 border-r border-gray-200 overflow-y-auto">
           <div class="px-4 py-4">
@@ -84,13 +84,16 @@ templ PostSidebar() {
         <!-- Right Side - Provider Settings Tabs -->
         <div class="w-1/2 overflow-y-auto">
           <div class="px-4 py-4">
-            <!-- Provider Settings Tabs -->
-            <div id="provider-settings-section" class="hidden">
-              <div id="provider-tabs" class="mb-4">
-                <!-- Tabs will be generated here -->
+            <!-- Tabs Section -->
+            <div id="tabs-section">
+              <!-- Tabs will be generated here -->
+              <div id="provider-tabs" class="mb-4 flex items-center space-x-2">
+                <!-- Tabs will be loaded here -->
               </div>
-              <div id="provider-settings-container" class="space-y-4">
-                <!-- Provider settings will be loaded here -->
+              
+              <!-- Tab Content -->
+              <div id="tab-content" class="space-y-4">
+                <!-- Content will be loaded here -->
               </div>
             </div>
           </div>
@@ -98,7 +101,7 @@ templ PostSidebar() {
       </div>
 
       <!-- Footer with Submit Button and Date Planning -->
-      <div class="p-4 border-t border-gray-200 bg-gray-50">
+      <div class="p-4 border-t-2 border-gray-300 bg-gray-100">
         <div class="container mx-auto flex flex-row justify-between items-center">
           <div class="flex items-center space-x-4">
             <!-- Date Planning on the left -->

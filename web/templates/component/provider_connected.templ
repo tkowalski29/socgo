@@ -1,0 +1,88 @@
+package component
+
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+	
+	"github.com/tkowalski/socgo/internal/data/database"
+)
+
+type ConnectedProvider struct {
+	ID          uint
+	Type        string
+	Name        string
+	DisplayName string
+	IsActive    bool
+	CreatedAt   time.Time
+	Config      string
+}
+
+templ ProviderConnected(providers []database.Provider) {
+	if len(providers) == 0 {
+		<div class="text-center py-8">
+			<div class="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+				<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+				</svg>
+			</div>
+			<h3 class="text-lg font-medium text-gray-900 mb-2">Brak połączonych kont</h3>
+			<p class="text-gray-500">Połącz swoje pierwsze konto w mediach społecznościowych, aby rozpocząć.</p>
+		</div>
+	} else {
+		<div class="space-y-4">
+			for _, provider := range providers {
+				{{
+					displayName := provider.Name
+					if provider.Config != "" {
+						var config struct {
+							UserInfo *struct {
+								Name string `json:"name"`
+							}
+						}
+						_ = json.Unmarshal([]byte(provider.Config), &config)
+						if config.UserInfo != nil && config.UserInfo.Name != "" {
+							displayName = config.UserInfo.Name
+						}
+					}
+					status := "Aktywny"
+					statusClass := "bg-green-100 text-green-800"
+					if !provider.IsActive {
+						status = "Nieaktywny"
+						statusClass = "bg-red-100 text-red-800"
+					}
+				}}
+				<div class="border rounded-lg p-4 flex items-center justify-between hover:shadow-md transition-shadow">
+					<div class="flex items-center space-x-4">
+						@ProviderLogo(ProviderLogoProps{
+							ID:          provider.ID,
+							Type:        provider.Type,
+							Name:        displayName,
+							Size:        "md",
+							ShowName:    false,
+							Interactive: false,
+							Selected:    false,
+							Disabled:    !provider.IsActive,
+						})
+						<div>
+							<h3 class="font-semibold text-gray-900">{ displayName }</h3>
+							<p class="text-sm text-gray-600">Połączono { provider.CreatedAt.Format("2 stycznia 2006") }</p>
+						</div>
+					</div>
+					<div class="flex items-center space-x-3">
+						<span class={ statusClass + " px-2 py-1 rounded-full text-xs font-medium" }>{ status }</span>
+						<button 
+							hx-delete={ "/api/providers/" + fmt.Sprint(provider.ID) } 
+							hx-target="closest div" 
+							hx-swap="outerHTML" 
+							hx-confirm="Czy na pewno chcesz rozłączyć tego providera?" 
+							class="bg-red-500 hover:bg-red-700 text-white font-medium py-1 px-3 rounded text-sm transition-colors"
+						>
+							Rozłącz
+						</button>
+					</div>
+				</div>
+			}
+		</div>
+	}
+}

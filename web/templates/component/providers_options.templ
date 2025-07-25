@@ -1,10 +1,5 @@
 package component
 
-import (
-	"fmt"
-	"strings"
-)
-
 type ProviderOption struct {
 	ID       uint
 	Type     string
@@ -22,45 +17,19 @@ templ ProvidersOptions(providers []ProviderOption) {
 	
 	<div class="flex flex-wrap gap-2">
 		for _, provider := range providers {
-			if !provider.Configured {
-				<label class="relative group cursor-not-allowed opacity-50">
-					<input type="checkbox" name="providers" value={ fmt.Sprint(provider.ID) } disabled class="sr-only">
-					<div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center border-2 border-gray-200">
-						<span class="text-white text-xs font-semibold">{ strings.ToUpper(provider.Type[:3]) }</span>
-					</div>
-					<div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-						{ provider.Name } (nieaktywny)
-					</div>
-				</label>
-			} else {
-				<label class="relative group cursor-pointer">
-					<input 
-						type="checkbox" 
-						name="providers" 
-						value={ fmt.Sprint(provider.ID) } 
-						data-provider-type={ provider.Type } 
-						data-provider-name={ provider.Name } 
-						data-provider-icon={ provider.IconClass } 
-						class="provider-checkbox sr-only"
-					>
-					<div class={ "w-10 h-10 " + provider.IconClass + " rounded-full flex items-center justify-center border-2 border-gray-200 hover:border-blue-300 transition-colors" }>
-						<span class="text-white text-xs font-semibold">{ strings.ToUpper(provider.Type[:3]) }</span>
-					</div>
-					<div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-						{ provider.Name }
-					</div>
-				</label>
+			if provider.Configured {
+				@ProviderLogo(ProviderLogoProps{
+					ID:          provider.ID,
+					Type:        provider.Type,
+					Name:        provider.Name,
+					Size:        "md",
+					ShowName:    true,
+					Interactive: true,
+					Selected:    false,
+					Disabled:    false,
+				})
 			}
 		}
-	</div>
-}
-
-templ ProvidersOptionsLoading() {
-	<div class="flex flex-wrap gap-2">
-		<div class="flex items-center justify-center py-2">
-			<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-			<span class="ml-2 text-xs text-gray-600">Ładowanie...</span>
-		</div>
 	</div>
 }
 
