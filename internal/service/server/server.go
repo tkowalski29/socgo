@@ -13,6 +13,9 @@ import (
 func New(container *di.Container) http.Handler {
 	r := mux.NewRouter()
 
+	// Add compression middleware
+	r.Use(handlers.GzipMiddleware)
+
 	// Static files
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
@@ -56,6 +59,12 @@ func New(container *di.Container) http.Handler {
 	r.HandleFunc("/api/stats/monthly", webHandler.HandleMonthlyCount).Methods("GET")
 	r.HandleFunc("/api/providers/options", webHandler.HandleProvidersOptions).Methods("GET")
 	r.HandleFunc("/api/providers/settings", webHandler.HandleProviderSettings).Methods("GET")
+	r.HandleFunc("/api/providers/tabs", webHandler.HandleProviderTabs).Methods("GET")
+	r.HandleFunc("/api/posts/success", webHandler.HandlePostSuccess).Methods("GET")
+	r.HandleFunc("/api/error-message", webHandler.HandleErrorMessage).Methods("GET")
+	r.HandleFunc("/api/cache/clear", webHandler.HandleCacheClear).Methods("POST")
+	r.HandleFunc("/api/cache/stats", webHandler.HandleCacheStats).Methods("GET")
+	r.HandleFunc("/api/file-preview", webHandler.HandleFilePreview).Methods("POST")
 
 	// OAuth routes
 	r.HandleFunc("/connect/{provider}", oauthHandler.HandleConnect).Methods("GET")

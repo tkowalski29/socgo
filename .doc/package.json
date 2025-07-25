@@ -1,0 +1,22 @@
+{
+  "name": "socgo-docs",
+  "version": "1.0.0",
+  "description": "SocGo Documentation",
+  "type": "module",
+  "scripts": {
+    "docs:dev": "npx vitepress dev .",
+    "docs:build": "npx vitepress build .",
+    "docs:preview": "npx vitepress preview ."
+  },
+  "dependencies": {
+    "mermaid": "^11.9.0",
+    "vitepress": "1.6.3",
+    "vitepress-plugin-mermaid": "^2.0.17"
+  },
+  "devDependencies": {
+    "sass": "1.69.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

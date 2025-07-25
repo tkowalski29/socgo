@@ -18,3 +18,9 @@ config.yml
 
 # Uploaded files
 uploads/
+
+# Node.js (in .doc directory)
+.doc/node_modules/
+.doc/.vitepress/dist/
+.doc/.vitepress/.temp/
+.doc/.vitepress/.cache/

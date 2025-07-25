@@ -28,6 +28,7 @@ import (
 type WebHandler struct {
 	dbManager       *database.Manager
 	providerService *post.ProviderService
+	cache           *ComponentCache
 }
 
 // PageData holds common data for all pages
@@ -44,6 +45,7 @@ func NewWebHandler(dbManager *database.Manager, providerService *post.ProviderSe
 	return &WebHandler{
 		dbManager:       dbManager,
 		providerService: providerService,
+		cache:           NewComponentCache(),
 	}
 }
 
@@ -433,77 +435,91 @@ func (h *WebHandler) HandleMonthlyCount(w http.ResponseWriter, r *http.Request) 
 // HandleProvidersOptions returns HTML checkboxes for provider selection
 func (h *WebHandler) HandleProvidersOptions(w http.ResponseWriter, r *http.Request) {
 	userID := h.getUserID(r)
+
+	// Generate cache key based on user ID
+	params := map[string]string{
+		"user_id": userID,
+	}
+	cacheKey := GenerateCacheKey("providers_options", params)
+
+	// Check cache first (cache for 2 minutes for provider options)
+	if cached, exists := h.cache.Get(cacheKey); exists {
+		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set("X-Cache", "HIT")
+		w.Write([]byte(cached))
+		return
+	}
+
 	db, err := h.dbManager.GetDB(userID)
 	if err != nil {
-		if _, writeErr := w.Write([]byte(`<p class="text-red-600">Error loading providers</p>`)); writeErr != nil {
-			log.Printf("Error writing response: %v", writeErr)
-		}
+		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set("X-Cache", "MISS")
+		component.ProvidersOptionsError().Render(r.Context(), w)
 		return
 	}
 
 	var providers []data_database.Provider
 	if err := db.Find(&providers).Error; err != nil {
-		if _, writeErr := w.Write([]byte(`<p class="text-red-600">Error loading providers</p>`)); writeErr != nil {
-			log.Printf("Error writing response: %v", writeErr)
-		}
+		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set("X-Cache", "MISS")
+		component.ProvidersOptionsError().Render(r.Context(), w)
 		return
 	}
 
 	if len(providers) == 0 {
+		var buf strings.Builder
+		component.ProvidersOptions([]component.ProviderOption{}).Render(r.Context(), &buf)
+		html := buf.String()
+
+		// Cache empty result for 1 minute
+		h.cache.Set(cacheKey, html, time.Minute)
+
 		w.Header().Set("Content-Type", "text/html")
-		if _, err := w.Write([]byte(`<p class="text-gray-500">No providers available. <a href="/providers" class="text-blue-600 hover:underline">Connect your accounts first</a>.</p>`)); err != nil {
-			log.Printf("Error writing providers options: %v", err)
-		}
+		w.Header().Set("X-Cache", "MISS")
+		w.Write([]byte(html))
 		return
 	}
 
-	html := `<div class="flex flex-wrap gap-2">`
+	// Convert to component data
+	var providerOptions []component.ProviderOption
 	for _, provider := range providers {
 		// Check if provider is configured
 		configured, err := h.providerService.IsProviderConfigured(userID, provider.Name)
-		if err != nil || !configured {
-			html += fmt.Sprintf(`
-				<label class="relative group cursor-not-allowed opacity-50">
-					<input type="checkbox" name="providers" value="%d" disabled class="sr-only">
-					<div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center border-2 border-gray-200">
-						<span class="text-white text-xs font-semibold">%s</span>
-					</div>
-					<div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-						%s (nieaktywny)
-					</div>
-				</label>
-			`, provider.ID, strings.ToUpper(provider.Type[:3]), provider.Name)
-		} else {
-			// Get provider icon class based on type
-			iconClass := "bg-gray-500"
-			switch provider.Type {
-			case "tiktok":
-				iconClass = "bg-black"
-			case "instagram":
-				iconClass = "bg-gradient-to-r from-purple-500 to-pink-500"
-			case "facebook":
-				iconClass = "bg-blue-600"
-			}
-
-			html += fmt.Sprintf(`
-				<label class="relative group cursor-pointer">
-					<input type="checkbox" name="providers" value="%d" data-provider-type="%s" data-provider-name="%s" data-provider-icon="%s" class="provider-checkbox sr-only">
-					<div class="w-10 h-10 %s rounded-full flex items-center justify-center border-2 border-gray-200 hover:border-blue-300 transition-colors">
-						<span class="text-white text-xs font-semibold">%s</span>
-					</div>
-					<div class="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-						%s
-					</div>
-				</label>
-			`, provider.ID, provider.Type, provider.Name, iconClass, iconClass, strings.ToUpper(provider.Type[:3]), provider.Name)
+		if err != nil {
+			configured = false
 		}
+
+		// Get provider icon class based on type
+		iconClass := "bg-gray-500"
+		switch provider.Type {
+		case "tiktok":
+			iconClass = "bg-black"
+		case "instagram":
+			iconClass = "bg-gradient-to-r from-purple-500 to-pink-500"
+		case "facebook":
+			iconClass = "bg-blue-600"
+		}
+
+		providerOptions = append(providerOptions, component.ProviderOption{
+			ID:         provider.ID,
+			Type:       provider.Type,
+			Name:       provider.Name,
+			IconClass:  iconClass,
+			Configured: configured,
+		})
 	}
-	html += `</div>`
+
+	// Render and cache
+	var buf strings.Builder
+	component.ProvidersOptions(providerOptions).Render(r.Context(), &buf)
+	html := buf.String()
+
+	// Cache for 2 minutes
+	h.cache.Set(cacheKey, html, 2*time.Minute)
 
 	w.Header().Set("Content-Type", "text/html")
-	if _, err := w.Write([]byte(html)); err != nil {
-		log.Printf("Error writing providers options: %v", err)
-	}
+	w.Header().Set("X-Cache", "MISS")
+	w.Write([]byte(html))
 }
 
 // HandleProviderSettings returns HTML for provider-specific settings
@@ -539,6 +555,153 @@ func (h *WebHandler) HandleProviderSettings(w http.ResponseWriter, r *http.Reque
 			log.Printf("Error rendering DefaultProviderSettings: %v", err)
 		}
 	}
+}
+
+// HandleProviderTabs returns HTML for provider tabs
+func (h *WebHandler) HandleProviderTabs(w http.ResponseWriter, r *http.Request) {
+	selectedProviders := r.URL.Query().Get("providers")
+	activeIndex := r.URL.Query().Get("active")
+
+	if selectedProviders == "" {
+		http.Error(w, "No providers selected", http.StatusBadRequest)
+		return
+	}
+
+	userID := h.getUserID(r)
+	db, err := h.dbManager.GetDB(userID)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	// Parse selected providers (comma-separated)
+	providerIDStrings := strings.Split(selectedProviders, ",")
+	var tabs []component.ProviderTab
+
+	for i, providerIDStr := range providerIDStrings {
+		providerID, err := strconv.ParseUint(providerIDStr, 10, 32)
+		if err != nil {
+			continue
+		}
+
+		// Fetch provider details from database
+		var provider data_database.Provider
+		if err := db.First(&provider, providerID).Error; err != nil {
+			continue
+		}
+
+		tabs = append(tabs, component.ProviderTab{
+			Index: i,
+			Type:  provider.Type,
+			Name:  provider.Name,
+		})
+	}
+
+	activeIdx := 0
+	if activeIndex != "" {
+		if idx, err := strconv.Atoi(activeIndex); err == nil && idx >= 0 && idx < len(tabs) {
+			activeIdx = idx
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	component.ProviderTabs(tabs, activeIdx).Render(r.Context(), w)
+}
+
+// HandlePostSuccess returns HTML for post success message
+func (h *WebHandler) HandlePostSuccess(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	component.PostSuccess().Render(r.Context(), w)
+}
+
+// HandleErrorMessage returns HTML for error message
+func (h *WebHandler) HandleErrorMessage(w http.ResponseWriter, r *http.Request) {
+	messageType := r.URL.Query().Get("type")
+	message := r.URL.Query().Get("message")
+
+	// Generate cache key
+	params := map[string]string{
+		"type":    messageType,
+		"message": message,
+	}
+	cacheKey := GenerateCacheKey("error_message", params)
+
+	// Check cache first (cache for 5 minutes for error messages)
+	if cached, exists := h.cache.Get(cacheKey); exists {
+		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set("X-Cache", "HIT")
+		w.Write([]byte(cached))
+		return
+	}
+
+	// Create message data
+	var msgData component.MessageData
+	switch messageType {
+	case "error":
+		msgData.Type = component.MessageTypeError
+		msgData.Text = message
+		msgData.Default = message == ""
+	case "success":
+		msgData.Type = component.MessageTypeSuccess
+		msgData.Text = message
+		msgData.Default = false
+	case "info":
+		msgData.Type = component.MessageTypeInfo
+		msgData.Text = message
+		msgData.Default = false
+	case "warning":
+		msgData.Type = component.MessageTypeWarning
+		msgData.Text = message
+		msgData.Default = false
+	case "loading":
+		msgData.Type = component.MessageTypeError
+		msgData.Text = "Błąd podczas ładowania"
+		msgData.Default = false
+	case "success_error":
+		msgData.Type = component.MessageTypeError
+		msgData.Text = "Błąd podczas ładowania komunikatu sukcesu"
+		msgData.Default = false
+	default:
+		msgData.Type = component.MessageTypeError
+		msgData.Text = ""
+		msgData.Default = true
+	}
+
+	// Render and cache
+	var buf strings.Builder
+	component.Message(msgData).Render(r.Context(), &buf)
+	html := buf.String()
+
+	h.cache.Set(cacheKey, html, 5*time.Minute)
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("X-Cache", "MISS")
+	w.Write([]byte(html))
+}
+
+// HandleCacheClear clears the component cache
+func (h *WebHandler) HandleCacheClear(w http.ResponseWriter, r *http.Request) {
+	h.cache.Clear()
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status": "success", "message": "Cache cleared"}`))
+}
+
+// HandleCacheStats returns cache statistics
+func (h *WebHandler) HandleCacheStats(w http.ResponseWriter, r *http.Request) {
+	// This would need to be implemented in the cache to track stats
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status": "success", "message": "Cache stats endpoint"}`))
+}
+
+// HandleFilePreview returns HTML for file preview
+func (h *WebHandler) HandleFilePreview(w http.ResponseWriter, r *http.Request) {
+	// This endpoint would receive file data and return preview HTML
+	// For now, it's a placeholder that would be called by JavaScript
+	w.Header().Set("Content-Type", "text/html")
+
+	// In a real implementation, you'd parse the file data from the request
+	// and return the appropriate preview HTML
+	component.FilePreviewContainer([]component.FilePreview{}).Render(r.Context(), w)
 }
 
 func (h *WebHandler) getUserID(r *http.Request) string {

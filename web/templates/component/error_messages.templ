@@ -1,0 +1,73 @@
+package component
+
+type MessageType string
+
+const (
+	MessageTypeError   MessageType = "error"
+	MessageTypeSuccess MessageType = "success"
+	MessageTypeInfo    MessageType = "info"
+	MessageTypeWarning MessageType = "warning"
+)
+
+type MessageData struct {
+	Type    MessageType
+	Text    string
+	Default bool
+}
+
+templ Message(msg MessageData) {
+	if msg.Default {
+		<div class={ getMessageClasses(msg.Type) }>
+			{ getMessageIcon(msg.Type) } { getDefaultMessage(msg.Type) }
+		</div>
+	} else {
+		<div class={ getMessageClasses(msg.Type) }>
+			{ getMessageIcon(msg.Type) } { msg.Text }
+		</div>
+	}
+}
+
+func getMessageClasses(msgType MessageType) string {
+	switch msgType {
+	case MessageTypeError:
+		return "text-red-600 text-sm"
+	case MessageTypeSuccess:
+		return "text-green-600 text-sm"
+	case MessageTypeInfo:
+		return "text-blue-600 text-sm"
+	case MessageTypeWarning:
+		return "text-yellow-600 text-sm"
+	default:
+		return "text-red-600 text-sm"
+	}
+}
+
+func getMessageIcon(msgType MessageType) string {
+	switch msgType {
+	case MessageTypeError:
+		return "✗"
+	case MessageTypeSuccess:
+		return "✓"
+	case MessageTypeInfo:
+		return "ℹ"
+	case MessageTypeWarning:
+		return "⚠"
+	default:
+		return "✗"
+	}
+}
+
+func getDefaultMessage(msgType MessageType) string {
+	switch msgType {
+	case MessageTypeError:
+		return "Błąd podczas wysyłania posta"
+	case MessageTypeSuccess:
+		return "Operacja zakończona pomyślnie"
+	case MessageTypeInfo:
+		return "Informacja"
+	case MessageTypeWarning:
+		return "Ostrzeżenie"
+	default:
+		return "Błąd"
+	}
+} 

@@ -1,11 +1,6 @@
 // Calendar functionality
 let currentWeek = new Date();
 
-// Function definitions
-
-
-
-
 // Initialize calendar
 document.addEventListener('DOMContentLoaded', function() {
   updateWeekTitle();
@@ -94,8 +89,6 @@ function showCalendarPostSidebar(postId, postType) {
   sidebar.classList.add('open');
 }
 
-
-
 function closeCalendarPostSidebar() {
   const sidebar = document.getElementById('post-details-sidebar');
   if (!sidebar) {
@@ -150,13 +143,6 @@ document.addEventListener('click', function(e) {
   if (!sidebar || !calendarContainer) return;
   
   if (!sidebar.contains(e.target) && !calendarContainer.contains(e.target) && sidebar.classList.contains('open')) {
-    closeCalendarPostSidebar();
-  }
-});
-
-// Close sidebar with Escape key
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
     closeCalendarPostSidebar();
   }
 });

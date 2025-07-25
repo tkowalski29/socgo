@@ -1,0 +1,37 @@
+package component
+
+import "fmt"
+
+type ProviderTab struct {
+	Index int
+	Type  string
+	Name  string
+}
+
+templ ProviderTabs(tabs []ProviderTab, activeIndex int) {
+	<div id="provider-tabs" class="mb-4">
+		for i, tab := range tabs {
+			if i == activeIndex {
+				<button 
+					class="px-3 py-2 text-sm font-medium rounded-md transition-colors bg-blue-100 text-blue-700"
+					data-index={ fmt.Sprint(tab.Index) }
+					data-type={ tab.Type }
+					data-name={ tab.Name }
+					onclick="switchProviderTab(this.dataset.index, this.dataset.type, this.dataset.name)"
+				>
+					{ tab.Name }
+				</button>
+			} else {
+				<button 
+					class="px-3 py-2 text-sm font-medium rounded-md transition-colors text-gray-500 hover:text-gray-700"
+					data-index={ fmt.Sprint(tab.Index) }
+					data-type={ tab.Type }
+					data-name={ tab.Name }
+					onclick="switchProviderTab(this.dataset.index, this.dataset.type, this.dataset.name)"
+				>
+					{ tab.Name }
+				</button>
+			}
+		}
+	</div>
+} 

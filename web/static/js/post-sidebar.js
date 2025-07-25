@@ -1,3 +1,6 @@
+// Client-side cache for components
+const clientCache = new Map();
+
 // Global sidebar functions
 function openPostSidebar() {
   const sidebar = document.getElementById('post-create-sidebar');
@@ -6,15 +9,10 @@ function openPostSidebar() {
     return;
   }
 
-  console.log('Adding open class to sidebar');
-  console.log('Current classes before:', sidebar.classList.toString());
   sidebar.classList.add('open');
-  console.log('Current classes after:', sidebar.classList.toString());
-  console.log('Computed transform:', getComputedStyle(sidebar).transform);
   
   // Force the transform to ensure sidebar is visible
   sidebar.style.transform = 'translateY(0)';
-  console.log('Forced transform to translateY(0)');
   
   // Load providers when sidebar opens
   if (typeof loadProviders === 'function') {
@@ -32,11 +30,8 @@ function openPostSidebar() {
 
 // Function to open sidebar with specific date and time
 function openPostSidebarWithDateTime(dateStr, hour) {
-  console.log('openPostSidebarWithDateTime called with:', dateStr, hour);
-  
   // Check if DOM is ready
   if (document.readyState === 'loading') {
-    console.log('DOM not ready, waiting...');
     document.addEventListener('DOMContentLoaded', () => {
       openPostSidebarWithDateTime(dateStr, hour);
     });
@@ -52,12 +47,10 @@ function openPostSidebarWithDateTime(dateStr, hour) {
   
   // Check if openPostSidebar function exists
   if (typeof openPostSidebar === 'function') {
-    console.log('openPostSidebar function found, calling it...');
     openPostSidebar();
   } else {
     console.error('openPostSidebar function not found!');
     // Fallback: manually open sidebar
-    console.log('Manually opening sidebar...');
     sidebar.classList.add('open');
     sidebar.style.transform = 'translateY(0)';
   }
@@ -84,7 +77,6 @@ function openPostSidebarWithDateTime(dateStr, hour) {
     const nativeInput = document.getElementById('schedule_at_native');
     if (nativeInput) nativeInput.value = nativeDateTime;
     
-    console.log('DateTime set to:', displayDateTime);
   }, 100);
 }
 
@@ -181,28 +173,14 @@ function closePostSidebar() {
     }
     
     if (rightSide) {
-      rightSide.innerHTML = `
-        <button
-          type="button"
-          onclick="closePostSidebar()"
-          class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        >
-          Anuluj
-        </button>
-        <button
-          type="submit"
-          form="post-form"
-          class="px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          id="submit-btn"
-        >
-          <span class="flex items-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-            </svg>
-            Opublikuj
-          </span>
-        </button>
-      `;
+      // Buttons are already in the template, just ensure they're visible
+      const cancelBtn = document.getElementById('cancel-btn');
+      const submitBtn = document.getElementById('submit-btn');
+      const submitBtnLoading = document.getElementById('submit-btn-loading');
+      
+      if (cancelBtn) cancelBtn.classList.remove('hidden');
+      if (submitBtn) submitBtn.classList.remove('hidden');
+      if (submitBtnLoading) submitBtnLoading.classList.add('hidden');
     }
   }
   
@@ -268,38 +246,65 @@ function handleFileSelect(input) {
   preview.innerHTML = '';
   
   if (input.files) {
-    Array.from(input.files).forEach((file, index) => {
-      const reader = new FileReader();
-      const previewItem = document.createElement('div');
-      previewItem.className = 'relative group';
-      
-      reader.onload = function(e) {
-        const isVideo = file.type.startsWith('video/');
-        const isImage = file.type.startsWith('image/');
-        
-        if (isImage) {
-          previewItem.innerHTML = `
-            <div class="relative w-16 h-16">
-              <img src="${e.target.result}" alt="${file.name}" class="w-full h-full object-cover rounded-lg">
-              <button type="button" onclick="removeFile(${index})" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">
-                ×
-              </button>
-            </div>
-          `;
-        } else if (isVideo) {
-          previewItem.innerHTML = `
-            <div class="relative w-16 h-16">
-              <video src="${e.target.result}" class="w-full h-full object-cover rounded-lg"></video>
-              <button type="button" onclick="removeFile(${index})" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">
-                ×
-              </button>
-            </div>
-          `;
-        }
-      };
-      
-      reader.readAsDataURL(file);
-      preview.appendChild(previewItem);
+    const files = Array.from(input.files);
+    const filePromises = files.map((file, index) => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          resolve({
+            index: index,
+            fileName: file.name,
+            fileType: file.type,
+            dataURL: e.target.result
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+    
+    Promise.all(filePromises).then(fileData => {
+      // Send file data to server to get HTML preview
+      fetch('/api/file-preview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ files: fileData })
+      })
+      .then(response => response.text())
+      .then(html => {
+        preview.innerHTML = html;
+      })
+      .catch(error => {
+        console.error('Error loading file preview:', error);
+        // Fallback to client-side preview
+        fileData.forEach(file => {
+          const previewItem = document.createElement('div');
+          previewItem.className = 'relative group';
+          
+          if (file.fileType.startsWith('image/')) {
+            previewItem.innerHTML = `
+              <div class="relative w-16 h-16">
+                <img src="${file.dataURL}" alt="${file.fileName}" class="w-full h-full object-cover rounded-lg">
+                <button type="button" data-index="${file.index}" onclick="removeFile(this.dataset.index)" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">
+                  ×
+                </button>
+              </div>
+            `;
+          } else if (file.fileType.startsWith('video/')) {
+            previewItem.innerHTML = `
+              <div class="relative w-16 h-16">
+                <video src="${file.dataURL}" class="w-full h-full object-cover rounded-lg"></video>
+                <button type="button" data-index="${file.index}" onclick="removeFile(this.dataset.index)" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">
+                  ×
+                </button>
+              </div>
+            `;
+          }
+          
+          preview.appendChild(previewItem);
+        });
+      });
     });
   }
 }
@@ -318,8 +323,6 @@ function removeFile(index) {
   input.files = dt.files;
   handleFileSelect(input);
 }
-
-
 
 // Handle provider selection and load settings
 function handleProviderSelection() {
@@ -348,40 +351,55 @@ function handleProviderSelection() {
     settingsContainer.innerHTML = '';
     tabsContainer.innerHTML = '';
     
-    // Create tabs
-    selectedProviders.forEach((checkbox, index) => {
-      const providerType = checkbox.getAttribute('data-provider-type');
-      const providerName = checkbox.getAttribute('data-provider-name');
-      const providerIcon = checkbox.getAttribute('data-provider-icon');
-      
-      const tab = document.createElement('button');
-      tab.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${index === 0 ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`;
-      tab.textContent = providerName;
-      tab.onclick = () => switchProviderTab(index, providerType, providerName);
-      tabsContainer.appendChild(tab);
-      
-      // Load first provider settings by default
-      if (index === 0) {
+    // Get selected provider IDs
+    const providerIDs = Array.from(selectedProviders).map(cb => cb.value).join(',');
+    
+    // Load tabs from server
+    fetch(`/api/providers/tabs?providers=${providerIDs}&active=0`)
+      .then(response => response.text())
+      .then(html => {
+        tabsContainer.innerHTML = html;
+        
+        // Load first provider settings by default
+        const firstProvider = selectedProviders[0];
+        const providerType = firstProvider.getAttribute('data-provider-type');
+        const providerName = firstProvider.getAttribute('data-provider-name');
         loadProviderSettings(providerType, providerName, settingsContainer);
-      }
-    });
+      })
+      .catch(error => {
+        console.error('Error loading provider tabs:', error);
+        // Load error message from server
+        fetch('/api/error-message?type=loading&message=Błąd ładowania zakładek')
+          .then(response => response.text())
+          .then(html => {
+            tabsContainer.innerHTML = html;
+          })
+          .catch(fetchError => {
+            console.error('Error loading error message:', fetchError);
+            tabsContainer.innerHTML = '<p class="text-red-600 text-sm">Błąd ładowania zakładek</p>';
+          });
+      });
   } else {
     settingsSection.classList.add('hidden');
   }
 }
 
 function switchProviderTab(index, providerType, providerName) {
-  const tabs = document.querySelectorAll('#provider-tabs button');
   const settingsContainer = document.getElementById('provider-settings-container');
   
-  // Update tab styles
-  tabs.forEach((tab, i) => {
-    if (i === index) {
-      tab.className = 'px-3 py-2 text-sm font-medium rounded-md transition-colors bg-blue-100 text-blue-700';
-    } else {
-      tab.className = 'px-3 py-2 text-sm font-medium rounded-md transition-colors text-gray-500 hover:text-gray-700';
-    }
-  });
+  // Get selected provider IDs
+  const selectedProviders = document.querySelectorAll('.provider-checkbox:checked');
+  const providerIDs = Array.from(selectedProviders).map(cb => cb.value).join(',');
+  
+  // Update tabs from server
+  fetch(`/api/providers/tabs?providers=${providerIDs}&active=${index}`)
+    .then(response => response.text())
+    .then(html => {
+      document.getElementById('provider-tabs').innerHTML = html;
+    })
+    .catch(error => {
+      console.error('Error updating provider tabs:', error);
+    });
   
   // Load provider settings
   loadProviderSettings(providerType, providerName, settingsContainer);
@@ -403,33 +421,59 @@ function loadProviderSettings(providerType, providerName, container) {
 
 // Load providers on sidebar open
 function loadProviders() {
+  const cacheKey = 'providers_options';
+  
+  // Check client cache first
+  if (clientCache.has(cacheKey)) {
+    const cached = clientCache.get(cacheKey);
+    const container = document.getElementById('providers-container');
+    container.innerHTML = cached.html;
+    addProviderEventListeners();
+    return;
+  }
+  
   fetch('/api/providers/options')
-    .then(response => response.text())
+    .then(response => {
+      const cacheStatus = response.headers.get('X-Cache');
+      return response.text();
+    })
     .then(html => {
       const container = document.getElementById('providers-container');
       container.innerHTML = html;
       
-      // Add event listeners to provider checkboxes and labels
-      document.querySelectorAll('.provider-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', handleProviderSelection);
+      // Cache for 2 minutes on client side
+      clientCache.set(cacheKey, {
+        html: html,
+        timestamp: Date.now(),
+        ttl: 2 * 60 * 1000 // 2 minutes
       });
       
-      // Add click handlers for labels to toggle checkboxes
-      document.querySelectorAll('label[class*="cursor-pointer"]').forEach(label => {
-        label.addEventListener('click', function(e) {
-          const checkbox = this.querySelector('input[type="checkbox"]');
-          if (checkbox && !checkbox.disabled) {
-            checkbox.checked = !checkbox.checked;
-            checkbox.dispatchEvent(new Event('change'));
-          }
-        });
-      });
+      addProviderEventListeners();
     })
     .catch(error => {
       console.error('Error loading providers:', error);
       document.getElementById('providers-container').innerHTML = 
         '<p class="text-red-600 text-sm">Błąd ładowania platform</p>';
     });
+}
+
+// Add event listeners to provider elements
+function addProviderEventListeners() {
+  // Add event listeners to provider checkboxes and labels
+  document.querySelectorAll('.provider-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', handleProviderSelection);
+  });
+  
+  // Add click handlers for labels to toggle checkboxes
+  document.querySelectorAll('label[class*="cursor-pointer"]').forEach(label => {
+    label.addEventListener('click', function(e) {
+      const checkbox = this.querySelector('input[type="checkbox"]');
+      if (checkbox && !checkbox.disabled) {
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
+      }
+    });
+  });
 }
 
 // Function to add another post
@@ -455,70 +499,66 @@ function reinitializeFormEventListeners() {
   const submitBtn = document.getElementById('submit-btn');
   
   if (form) {
-    form.addEventListener('htmx:beforeRequest', function() {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>Wysyłanie...';
+        form.addEventListener('htmx:beforeRequest', function() {
+      // Show loading button, hide normal button
+      const submitBtn = document.getElementById('submit-btn');
+      const submitBtnLoading = document.getElementById('submit-btn-loading');
+      
+      if (submitBtn) submitBtn.classList.add('hidden');
+      if (submitBtnLoading) submitBtnLoading.classList.remove('hidden');
+      
       resultDiv.innerHTML = '';
     });
     
     form.addEventListener('htmx:afterRequest', function(event) {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>Opublikuj';
+      // Show normal button, hide loading button
+      const submitBtn = document.getElementById('submit-btn');
+      const submitBtnLoading = document.getElementById('submit-btn-loading');
+      
+      if (submitBtn) submitBtn.classList.remove('hidden');
+      if (submitBtnLoading) submitBtnLoading.classList.add('hidden');
       
       if (event.detail.successful) {
-        console.log('Post submitted successfully, showing success message...');
-        
         // Hide the footer
         const footerContainer = document.querySelector('.p-4.border-t.border-gray-200.bg-gray-50');
         if (footerContainer) {
           footerContainer.style.display = 'none';
-          console.log('Footer container hidden');
         }
         
-        // Find the form container and replace its content
-        const formContainer = document.querySelector('.container.mx-auto.flex.flex-row.overflow-hidden');
-        if (formContainer) {
-          // Make the container full width and center the content
-          formContainer.className = 'container mx-auto flex flex-row overflow-hidden';
-          
-          // Replace the entire content with success message
-          formContainer.innerHTML = `
-            <div class="w-full overflow-y-auto">
-              <div class="px-4 py-4">
-                <div class="flex flex-col items-center justify-center h-full text-center py-8">
-                  <div class="mb-6">
-                    <svg class="w-20 h-20 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                  </div>
-                  <h3 class="text-2xl font-semibold text-gray-900 mb-3">Post został wysłany pomyślnie!</h3>
-                  <p class="text-gray-600 mb-8 text-lg">Twój post został opublikowany na wybranych platformach.</p>
-                  <div class="flex space-x-4">
-                    <button
-                      type="button"
-                      onclick="closePostSidebar()"
-                      class="px-6 py-3 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                    >
-                      Zamknij
-                    </button>
-                    <button
-                      type="button"
-                      onclick="addAnotherPost()"
-                      class="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                    >
-                      Dodaj kolejny post
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
-          console.log('Success message inserted');
-        } else {
-          console.error('Could not find form container');
-        }
+        // Load success message from server
+        fetch('/api/posts/success')
+          .then(response => response.text())
+          .then(html => {
+            const formContainer = document.querySelector('.container.mx-auto.flex.flex-row.overflow-hidden');
+            if (formContainer) {
+              formContainer.className = 'container mx-auto flex flex-row overflow-hidden';
+              formContainer.innerHTML = html;
+            }
+          })
+          .catch(error => {
+            console.error('Error loading success message:', error);
+            // Load error message from server
+            fetch('/api/error-message?type=success_error')
+              .then(response => response.text())
+              .then(html => {
+                resultDiv.innerHTML = html;
+              })
+              .catch(fetchError => {
+                console.error('Error loading error message:', fetchError);
+                resultDiv.innerHTML = '<div class="text-red-600 text-sm">✗ Błąd podczas ładowania komunikatu sukcesu</div>';
+              });
+          });
       } else {
-        resultDiv.innerHTML = '<div class="text-red-600 text-sm">✗ Błąd podczas wysyłania posta</div>';
+        // Load error message from server
+        fetch('/api/error-message?type=error')
+          .then(response => response.text())
+          .then(html => {
+            resultDiv.innerHTML = html;
+          })
+          .catch(error => {
+            console.error('Error loading error message:', error);
+            resultDiv.innerHTML = '<div class="text-red-600 text-sm">✗ Błąd podczas wysyłania posta</div>';
+          });
       }
     });
   }
@@ -634,81 +674,45 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// Form submission handling
-document.addEventListener('DOMContentLoaded', function() {
-  const form = document.getElementById('post-form');
-  const resultDiv = document.getElementById('post-result');
-  const submitBtn = document.getElementById('submit-btn');
-  
-  if (form) {
-    form.addEventListener('htmx:beforeRequest', function() {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>Wysyłanie...';
-      resultDiv.innerHTML = '';
+// Clear client cache
+function clearClientCache() {
+  clientCache.clear();
+}
+
+// Clear server cache
+function clearServerCache() {
+  fetch('/api/cache/clear', { method: 'POST' })
+    .then(response => response.json())
+    .then(data => {
+      // Also clear client cache
+      clearClientCache();
+    })
+    .catch(error => {
+      console.error('Error clearing server cache:', error);
     });
-    
-    form.addEventListener('htmx:afterRequest', function(event) {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>Opublikuj';
-      
-      if (event.detail.successful) {
-        console.log('Post submitted successfully, showing success message...');
-        
-        // Hide the footer
-        const footerContainer = document.querySelector('.p-4.border-t.border-gray-200.bg-gray-50');
-        if (footerContainer) {
-          footerContainer.style.display = 'none';
-          console.log('Footer container hidden');
-        }
-        
-        // Find the form container and replace its content
-        const formContainer = document.querySelector('.container.mx-auto.flex.flex-row.overflow-hidden');
-        if (formContainer) {
-          // Make the container full width and center the content
-          formContainer.className = 'container mx-auto flex flex-row overflow-hidden';
-          
-          // Replace the entire content with success message
-          formContainer.innerHTML = `
-            <div class="w-full overflow-y-auto">
-              <div class="px-4 py-4">
-                <div class="flex flex-col items-center justify-center h-full text-center py-8">
-                  <div class="mb-6">
-                    <svg class="w-20 h-20 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                  </div>
-                  <h3 class="text-2xl font-semibold text-gray-900 mb-3">Post został wysłany pomyślnie!</h3>
-                  <p class="text-gray-600 mb-8 text-lg">Twój post został opublikowany na wybranych platformach.</p>
-                  <div class="flex space-x-4">
-                    <button
-                      type="button"
-                      onclick="closePostSidebar()"
-                      class="px-6 py-3 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                    >
-                      Zamknij
-                    </button>
-                    <button
-                      type="button"
-                      onclick="addAnotherPost()"
-                      class="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                    >
-                      Dodaj kolejny post
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
-          console.log('Success message inserted');
-        } else {
-          console.error('Could not find form container');
-        }
-      } else {
-        resultDiv.innerHTML = '<div class="text-red-600 text-sm">✗ Błąd podczas wysyłania posta</div>';
-      }
+}
+
+// Get cache stats
+function getCacheStats() {
+  fetch('/api/cache/stats')
+    .then(response => response.json())
+    .catch(error => {
+      console.error('Error getting cache stats:', error);
     });
+}
+
+// Cleanup expired cache entries
+function cleanupExpiredCache() {
+  const now = Date.now();
+  for (const [key, value] of clientCache.entries()) {
+    if (now - value.timestamp > value.ttl) {
+      clientCache.delete(key);
+    }
   }
-});
+}
+
+// Run cleanup every minute
+setInterval(cleanupExpiredCache, 60000);
 
 // Make functions globally available
 window.openPostSidebar = openPostSidebar;
@@ -720,3 +724,6 @@ window.switchProviderTab = switchProviderTab;
 window.loadProviders = loadProviders;
 window.addAnotherPost = addAnotherPost;
 window.reinitializeFormEventListeners = reinitializeFormEventListeners;
+window.clearClientCache = clearClientCache;
+window.clearServerCache = clearServerCache;
+window.getCacheStats = getCacheStats;
