@@ -71,6 +71,7 @@ func (m *Manager) runMigrations(db *gorm.DB) error {
 		&database.Provider{},
 		&database.ScheduledJob{},
 		&database.APIToken{},
+		&database.Notification{},
 	); err != nil {
 		return err
 	}

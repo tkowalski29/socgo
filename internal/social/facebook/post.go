@@ -31,12 +31,30 @@ func NewFacebookPost(config *provider.ProviderConfig, httpClient provider.HTTPCl
 	}
 }
 
+// Funkcja pomocnicza do doklejania lokalizacji
+func appendLocation(content string, settings map[string]string) string {
+	if settings != nil {
+		if location, ok := settings["facebook_location"]; ok && location != "" {
+			log.Printf("Adding location to content: %s", location)
+			return content + "\n📍 " + location
+		}
+	}
+	log.Printf("No location found in settings or settings is nil")
+	return content
+}
+
 // Publish publishes content to Facebook
 func (p *FacebookPost) Publish(ctx context.Context, content string, media []provider.Media) (postID string, err error) {
-	// If we have media files, try to publish with media directly
+	log.Printf("Publish called with original content: %s", content)
+	log.Printf("Settings: %+v", p.Config.Settings)
+
+	content = appendLocation(content, p.Config.Settings)
+	log.Printf("Content after adding location: %s", content)
+
+	// If we have media files, try to publish with media
 	if len(media) > 0 {
-		// Try direct upload with media first
-		postID, err = p.publishWithMedia(ctx, content, media)
+		// Use publishMultipleImages for all media cases (it handles single and multiple images)
+		postID, err = p.publishMultipleImages(ctx, content, media)
 		if err != nil {
 			// Check if it's a duplicate media error
 			if strings.Contains(err.Error(), "Already Posted") || strings.Contains(err.Error(), "error_subcode\":1366051") {
@@ -44,7 +62,9 @@ func (p *FacebookPost) Publish(ctx context.Context, content string, media []prov
 				// Fallback to text-only post
 				return p.publishTextOnly(ctx, content)
 			} else {
-				return "", fmt.Errorf("failed to publish with media: %w", err)
+				log.Printf("Warning: Failed to publish with media: %v, falling back to text-only post", err)
+				// Fallback to text-only post
+				return p.publishTextOnly(ctx, content)
 			}
 		}
 		return postID, nil
@@ -56,6 +76,8 @@ func (p *FacebookPost) Publish(ctx context.Context, content string, media []prov
 
 // publishTextOnly publishes a text-only post to Facebook
 func (p *FacebookPost) publishTextOnly(ctx context.Context, content string) (string, error) {
+	log.Printf("publishTextOnly called with content: %s", content)
+
 	// Facebook Graph API endpoint for publishing to page
 	url := fmt.Sprintf("https://graph.facebook.com/v18.0/%s/feed", p.Config.UserID)
 
@@ -65,22 +87,7 @@ func (p *FacebookPost) publishTextOnly(ctx context.Context, content string) (str
 		"access_token": p.Config.AccessToken,
 	}
 
-	// Add location to message if available
-	if p.Config.Settings != nil {
-		if location, ok := p.Config.Settings["facebook_location"]; ok && location != "" {
-			payload["message"] = content + "\n📍 " + location
-		}
-	}
-
-	// Add Facebook settings if available
-	if p.Config.Settings != nil {
-		// Location setting - add to message instead of using place parameter
-		// Facebook requires place tag ID, not plain text
-		if location, ok := p.Config.Settings["facebook_location"]; ok && location != "" {
-			// For now, we'll add location to the message
-			// TODO: Implement Facebook Places API integration
-		}
-	}
+	log.Printf("Sending payload to Facebook: %+v", payload)
 
 	// Marshal payload to JSON
 	payloadBytes, err := json.Marshal(payload)
@@ -274,12 +281,6 @@ func (p *FacebookPost) publishWithMedia(ctx context.Context, content string, med
 		return "", fmt.Errorf("no media provided")
 	}
 
-	// For now, only handle single image (Facebook photos endpoint with message parameter)
-	if len(media) > 1 {
-		// For multiple images, we would need to use a different approach
-		// For now, just use the first image
-	}
-
 	// Facebook Graph API endpoint for posting photo with message
 	url := fmt.Sprintf("https://graph.facebook.com/v18.0/%s/photos", p.Config.UserID)
 
@@ -301,25 +302,8 @@ func (p *FacebookPost) publishWithMedia(ctx context.Context, content string, med
 
 	// Add message
 	if content != "" {
-		// Add location to message if available
-		if p.Config.Settings != nil {
-			if location, ok := p.Config.Settings["facebook_location"]; ok && location != "" {
-				content = content + "\n📍 " + location
-			}
-		}
-
 		if err := writer.WriteField("message", content); err != nil {
 			return "", fmt.Errorf("failed to write message field: %w", err)
-		}
-	}
-
-	// Add Facebook settings if available
-	if p.Config.Settings != nil {
-		// Location setting - add to message instead of using place parameter
-		// Facebook requires place tag ID, not plain text
-		if location, ok := p.Config.Settings["facebook_location"]; ok && location != "" {
-			// For now, we'll add location to the message
-			// TODO: Implement Facebook Places API integration
 		}
 	}
 
@@ -374,5 +358,150 @@ func (p *FacebookPost) publishWithMedia(ctx context.Context, content string, med
 			response.Error.Message, response.Error.Type, response.Error.Code)
 	}
 
+	return response.ID, nil
+}
+
+// publishMultipleImages publishes a post with multiple images to Facebook
+func (p *FacebookPost) publishMultipleImages(ctx context.Context, content string, media []provider.Media) (string, error) {
+	if len(media) < 1 {
+		return "", fmt.Errorf("publishMultipleImages wymaga co najmniej 1 obrazek")
+	}
+
+	// For single image, use simpler approach
+	if len(media) == 1 {
+		return p.publishWithMedia(ctx, content, media)
+	}
+
+	var mediaIDs []string
+	for _, m := range media {
+		// 1. Upload each image as unpublished
+		id, err := p.uploadPhotoUnpublished(ctx, m)
+		if err != nil {
+			return "", fmt.Errorf("failed to upload image: %w", err)
+		}
+		mediaIDs = append(mediaIDs, id)
+	}
+
+	// 2. Create post with attached_media
+	url := fmt.Sprintf("https://graph.facebook.com/v18.0/%s/feed", p.Config.UserID)
+
+	// Prepare multipart form data
+	var b bytes.Buffer
+	writer := multipart.NewWriter(&b)
+
+	// Add access token
+	if err := writer.WriteField("access_token", p.Config.AccessToken); err != nil {
+		return "", fmt.Errorf("failed to write access_token field: %w", err)
+	}
+
+	// Add message
+	if content != "" {
+		if err := writer.WriteField("message", content); err != nil {
+			return "", fmt.Errorf("failed to write message field: %w", err)
+		}
+	}
+
+	// Add attached_media fields
+	for i, id := range mediaIDs {
+		field := fmt.Sprintf("attached_media[%d]", i)
+		jsonVal := fmt.Sprintf(`{"media_fbid":"%s"}`, id)
+		if err := writer.WriteField(field, jsonVal); err != nil {
+			return "", fmt.Errorf("failed to write attached_media field: %w", err)
+		}
+	}
+
+	writer.Close()
+
+	resp, err := http.Post(url, writer.FormDataContentType(), &b)
+	if err != nil {
+		return "", fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("multi-image post failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var response struct {
+		ID    string `json:"id"`
+		Error struct {
+			Message   string `json:"message"`
+			Type      string `json:"type"`
+			Code      int    `json:"code"`
+			ErrorCode int    `json:"error_code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+	if response.Error.Message != "" {
+		return "", fmt.Errorf("Facebook API error: %s (type: %s, code: %d)",
+			response.Error.Message, response.Error.Type, response.Error.Code)
+	}
+	return response.ID, nil
+}
+
+// uploadPhotoUnpublished uploads a photo to Facebook as unpublished and returns the media_fbid
+func (p *FacebookPost) uploadPhotoUnpublished(ctx context.Context, m provider.Media) (string, error) {
+	url := fmt.Sprintf("https://graph.facebook.com/v18.0/%s/photos", p.Config.UserID)
+
+	file, err := os.Open(m.FilePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open file %s: %w", m.FilePath, err)
+	}
+	defer file.Close()
+
+	var b bytes.Buffer
+	writer := multipart.NewWriter(&b)
+
+	if err := writer.WriteField("access_token", p.Config.AccessToken); err != nil {
+		return "", fmt.Errorf("failed to write access_token field: %w", err)
+	}
+	if err := writer.WriteField("published", "false"); err != nil {
+		return "", fmt.Errorf("failed to write published field: %w", err)
+	}
+	part, err := writer.CreateFormFile("source", m.FileName)
+	if err != nil {
+		return "", fmt.Errorf("failed to create form file: %w", err)
+	}
+	if _, err := io.Copy(part, file); err != nil {
+		return "", fmt.Errorf("failed to copy file data: %w", err)
+	}
+	writer.Close()
+
+	resp, err := http.Post(url, writer.FormDataContentType(), &b)
+	if err != nil {
+		return "", fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("upload unpublished failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+	var response struct {
+		ID    string `json:"id"`
+		Error struct {
+			Message   string `json:"message"`
+			Type      string `json:"type"`
+			Code      int    `json:"code"`
+			ErrorCode int    `json:"error_code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+	if response.Error.Message != "" {
+		return "", fmt.Errorf("Facebook API error: %s (type: %s, code: %d)",
+			response.Error.Message, response.Error.Type, response.Error.Code)
+	}
 	return response.ID, nil
 }

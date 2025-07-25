@@ -10,6 +10,7 @@ import (
 	"github.com/tkowalski/socgo/internal/data/config"
 	"github.com/tkowalski/socgo/internal/di"
 	"github.com/tkowalski/socgo/internal/service/database"
+	"github.com/tkowalski/socgo/internal/service/notifications"
 	"github.com/tkowalski/socgo/internal/service/oauth"
 	"github.com/tkowalski/socgo/internal/service/post"
 	"github.com/tkowalski/socgo/internal/service/scheduler"
@@ -38,8 +39,11 @@ func main() {
 	providerService := post.NewProviderService(dbManager, oauthService)
 	container.Register("provider_service", providerService)
 
+	notificationService := notifications.NewService(dbManager)
+	container.Register("notification_service", notificationService)
+
 	// Create and start scheduler
-	jobScheduler := scheduler.New(dbManager, providerService)
+	jobScheduler := scheduler.New(dbManager, providerService, notificationService)
 	container.Register("scheduler", jobScheduler)
 	jobScheduler.Start()
 

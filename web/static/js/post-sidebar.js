@@ -19,6 +19,13 @@ function openPostSidebar() {
     loadProviders();
   }
   
+  // Initialize form event listeners
+  setTimeout(() => {
+    if (typeof reinitializeFormEventListeners === 'function') {
+      reinitializeFormEventListeners();
+    }
+  }, 100);
+  
   // Focus on content textarea
   setTimeout(() => {
     const textarea = document.getElementById('content');
@@ -314,14 +321,45 @@ function removeFile(index) {
   const input = document.getElementById('media');
   const dt = new DataTransfer();
   
+  // Convert index to number
+  const removeIndex = parseInt(index);
+  
   Array.from(input.files).forEach((file, i) => {
-    if (i !== index) {
+    if (i !== removeIndex) {
       dt.items.add(file);
     }
   });
   
   input.files = dt.files;
   handleFileSelect(input);
+}
+
+// Clear all files
+function clearAllFiles() {
+  const input = document.getElementById('media');
+  const preview = document.getElementById('file-preview');
+  
+  // Clear the file input
+  input.value = '';
+  
+  // Clear the preview
+  preview.innerHTML = '';
+  
+  // Send empty file list to server to get empty preview HTML
+  fetch('/api/file-preview', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ files: [] })
+  })
+  .then(response => response.text())
+  .then(html => {
+    preview.innerHTML = html;
+  })
+  .catch(error => {
+    console.error('Error clearing file preview:', error);
+  });
 }
 
 // Handle provider selection and load settings
@@ -422,50 +460,87 @@ function loadProviderSettings(providerType, providerName, container) {
 // Load providers on sidebar open
 function loadProviders() {
   const cacheKey = 'providers_options';
-  
+
+  const container = document.getElementById('providers-container');
+  if (!container) {
+    console.error('providers-container not found!');
+    return;
+  }
+
   // Check client cache first
   if (clientCache.has(cacheKey)) {
     const cached = clientCache.get(cacheKey);
-    const container = document.getElementById('providers-container');
     container.innerHTML = cached.html;
     addProviderEventListeners();
+    handleProviderSelection();
+    // Auto-select first available provider
+    autoSelectFirstProvider();
     return;
   }
-  
+
   fetch('/api/providers/options')
     .then(response => {
       const cacheStatus = response.headers.get('X-Cache');
       return response.text();
     })
     .then(html => {
-      const container = document.getElementById('providers-container');
       container.innerHTML = html;
-      
+
       // Cache for 2 minutes on client side
       clientCache.set(cacheKey, {
         html: html,
         timestamp: Date.now(),
         ttl: 2 * 60 * 1000 // 2 minutes
       });
-      
+
       addProviderEventListeners();
+      handleProviderSelection();
+      // Auto-select first available provider
+      autoSelectFirstProvider();
     })
     .catch(error => {
       console.error('Error loading providers:', error);
-      document.getElementById('providers-container').innerHTML = 
-        '<p class="text-red-600 text-sm">Błąd ładowania platform</p>';
+      container.innerHTML = '<p class="text-red-600 text-sm">Błąd ładowania platform</p>';
     });
+}
+
+// Auto-select first available provider
+function autoSelectFirstProvider() {
+  const availableCheckboxes = document.querySelectorAll('.provider-checkbox:not(:disabled)');
+  
+  if (availableCheckboxes.length > 0) {
+    const firstCheckbox = availableCheckboxes[0];
+    firstCheckbox.checked = true;
+    firstCheckbox.dispatchEvent(new Event('change'));
+  }
 }
 
 // Add event listeners to provider elements
 function addProviderEventListeners() {
+  
   // Add event listeners to provider checkboxes and labels
-  document.querySelectorAll('.provider-checkbox').forEach(checkbox => {
-    checkbox.addEventListener('change', handleProviderSelection);
+  const checkboxes = document.querySelectorAll('.provider-checkbox');
+  
+  if (checkboxes.length === 0) {
+    console.warn('No provider checkboxes found!');
+    return;
+  }
+  
+  checkboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', function(e) {
+      handleProviderSelection();
+    });
   });
   
   // Add click handlers for labels to toggle checkboxes
-  document.querySelectorAll('label[class*="cursor-pointer"]').forEach(label => {
+  const labels = document.querySelectorAll('label[class*="cursor-pointer"]');
+  
+  if (labels.length === 0) {
+    console.warn('No provider labels found!');
+    return;
+  }
+  
+  labels.forEach(label => {
     label.addEventListener('click', function(e) {
       const checkbox = this.querySelector('input[type="checkbox"]');
       if (checkbox && !checkbox.disabled) {
@@ -487,81 +562,159 @@ function addAnotherPost() {
     footerContainer.style.display = 'block';
   }
   
-  // Restore the original form content by reloading the page
-  // This is the simplest way to ensure all form elements are properly restored
-  window.location.reload();
+  // Reset form fields manually instead of using form.reset()
+  if (form) {
+    // Reset textarea
+    const textarea = form.querySelector('#content');
+    if (textarea) textarea.value = '';
+    
+    // Reset file input
+    const fileInput = form.querySelector('#media');
+    if (fileInput) fileInput.value = '';
+    
+    // Reset hidden datetime input
+    const datetimeInput = form.querySelector('#schedule_at_native');
+    if (datetimeInput) datetimeInput.value = '';
+    
+    // Reset provider checkboxes
+    const checkboxes = form.querySelectorAll('.provider-checkbox');
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = false;
+    });
+    
+    // Hide provider settings section after unchecking
+    handleProviderSelection();
+  }
+  
+  // Clear file preview
+  const filePreview = document.getElementById('file-preview');
+  if (filePreview) {
+    filePreview.innerHTML = '';
+  }
+  
+  // Clear result div
+  if (resultDiv) {
+    resultDiv.innerHTML = '';
+  }
+  
+  // Reset datetime to current time
+  setDefaultDateTime();
+  
+  // Clear providers cache to ensure fresh data
+  clientCache.delete('providers_options');
+  
+  // Reset the form container structure
+  const formContainer = document.querySelector('.w-full.overflow-y-auto');
+  if (formContainer) {
+    // Reset to original form structure
+    formContainer.className = 'container mx-auto flex flex-row overflow-hidden';
+    
+    // Check if providers-container exists
+    const providersContainer = document.getElementById('providers-container');
+    if (!providersContainer) {
+      console.error('providers-container not found after reset!');
+      return;
+    }
+    
+    // Reload providers and then reinitialize form event listeners
+    loadProviders();
+    
+    // Wait for providers to load, then reinitialize form event listeners
+    setTimeout(() => {
+      if (typeof reinitializeFormEventListeners === 'function') {
+        reinitializeFormEventListeners();
+      }
+    }, 500); // Increased timeout to 500ms
+  }
 }
 
 // Function to reinitialize form event listeners
 function reinitializeFormEventListeners() {
   const form = document.getElementById('post-form');
   const resultDiv = document.getElementById('post-result');
-  const submitBtn = document.getElementById('submit-btn');
   
   if (form) {
-        form.addEventListener('htmx:beforeRequest', function() {
-      // Show loading button, hide normal button
-      const submitBtn = document.getElementById('submit-btn');
-      const submitBtnLoading = document.getElementById('submit-btn-loading');
-      
-      if (submitBtn) submitBtn.classList.add('hidden');
-      if (submitBtnLoading) submitBtnLoading.classList.remove('hidden');
-      
-      resultDiv.innerHTML = '';
-    });
+    // Remove existing event listeners by removing and re-adding them
+    form.removeEventListener('htmx:beforeRequest', handleBeforeRequest);
+    form.removeEventListener('htmx:afterRequest', handleAfterRequest);
     
-    form.addEventListener('htmx:afterRequest', function(event) {
-      // Show normal button, hide loading button
-      const submitBtn = document.getElementById('submit-btn');
-      const submitBtnLoading = document.getElementById('submit-btn-loading');
-      
-      if (submitBtn) submitBtn.classList.remove('hidden');
-      if (submitBtnLoading) submitBtnLoading.classList.add('hidden');
-      
-      if (event.detail.successful) {
-        // Hide the footer
-        const footerContainer = document.querySelector('.p-4.border-t.border-gray-200.bg-gray-50');
-        if (footerContainer) {
-          footerContainer.style.display = 'none';
-        }
-        
-        // Load success message from server
-        fetch('/api/posts/success')
-          .then(response => response.text())
-          .then(html => {
-            const formContainer = document.querySelector('.container.mx-auto.flex.flex-row.overflow-hidden');
-            if (formContainer) {
-              formContainer.className = 'container mx-auto flex flex-row overflow-hidden';
-              formContainer.innerHTML = html;
-            }
-          })
-          .catch(error => {
-            console.error('Error loading success message:', error);
-            // Load error message from server
-            fetch('/api/error-message?type=success_error')
-              .then(response => response.text())
-              .then(html => {
-                resultDiv.innerHTML = html;
-              })
-              .catch(fetchError => {
-                console.error('Error loading error message:', fetchError);
-                resultDiv.innerHTML = '<div class="text-red-600 text-sm">✗ Błąd podczas ładowania komunikatu sukcesu</div>';
-              });
-          });
-      } else {
-        // Load error message from server
-        fetch('/api/error-message?type=error')
-          .then(response => response.text())
-          .then(html => {
-            resultDiv.innerHTML = html;
-          })
-          .catch(error => {
-            console.error('Error loading error message:', error);
-            resultDiv.innerHTML = '<div class="text-red-600 text-sm">✗ Błąd podczas wysyłania posta</div>';
-          });
+    // Add event listeners
+    form.addEventListener('htmx:beforeRequest', handleBeforeRequest);
+    form.addEventListener('htmx:afterRequest', handleAfterRequest);
+  }
+}
+
+// Separate functions for event handlers
+function handleBeforeRequest() {
+  // Show loading button, hide normal button
+  const submitBtn = document.getElementById('submit-btn');
+  const submitBtnLoading = document.getElementById('submit-btn-loading');
+  
+  if (submitBtn) submitBtn.classList.add('hidden');
+  if (submitBtnLoading) submitBtnLoading.classList.remove('hidden');
+  
+  const resultDiv = document.getElementById('post-result');
+  if (resultDiv) resultDiv.innerHTML = '';
+}
+
+function handleAfterRequest(event) {
+  // Show normal button, hide loading button
+  const submitBtn = document.getElementById('submit-btn');
+  const submitBtnLoading = document.getElementById('submit-btn-loading');
+  
+  if (submitBtn) submitBtn.classList.remove('hidden');
+  if (submitBtnLoading) submitBtnLoading.classList.add('hidden');
+  
+  // Check if the request was successful (HTTP 200-299)
+  const isSuccessful = event.detail.xhr.status >= 200 && event.detail.xhr.status < 300;
+  
+  if (isSuccessful) {
+    // Hide the footer
+    const footerContainer = document.querySelector('.p-4.border-t.border-gray-200.bg-gray-50');
+    if (footerContainer) {
+      footerContainer.style.display = 'none';
+    }
+  }
+}
+
+function submitPostForm() {
+  const form = document.getElementById('post-form');
+  if (form) {
+    // Add provider settings to form before submitting
+    addProviderSettingsToForm(form);
+    form.requestSubmit();
+  }
+}
+
+// Add provider settings to form before submission
+function addProviderSettingsToForm(form) {
+  console.log('Adding provider settings to form...');
+  
+  // Get all input fields from provider settings
+  const settingsInputs = document.querySelectorAll('#provider-settings-container input, #provider-settings-container select, #provider-settings-container textarea');
+  
+  console.log('Found settings inputs:', settingsInputs.length);
+  
+  settingsInputs.forEach(input => {
+    console.log('Processing input:', input.name, '=', input.value);
+    
+    // Remove any existing hidden inputs with the same name
+    const existingInputs = form.querySelectorAll(`input[name="${input.name}"]`);
+    existingInputs.forEach(existing => {
+      if (existing.type === 'hidden') {
+        existing.remove();
       }
     });
-  }
+    
+    // Create a hidden input with the same name and value
+    const hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.name = input.name;
+    hiddenInput.value = input.value;
+    form.appendChild(hiddenInput);
+    
+    console.log('Added hidden input:', input.name, '=', input.value);
+  });
 }
 
 // Initialize datetime on page load
@@ -719,6 +872,7 @@ window.openPostSidebar = openPostSidebar;
 window.closePostSidebar = closePostSidebar;
 window.handleFileSelect = handleFileSelect;
 window.removeFile = removeFile;
+window.clearAllFiles = clearAllFiles;
 window.handleProviderSelection = handleProviderSelection;
 window.switchProviderTab = switchProviderTab;
 window.loadProviders = loadProviders;

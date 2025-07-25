@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -15,9 +16,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	data_database "github.com/tkowalski/socgo/internal/data/database"
 	provider_pkg "github.com/tkowalski/socgo/internal/data/provider"
 	"github.com/tkowalski/socgo/internal/service/database"
+	"github.com/tkowalski/socgo/internal/service/notifications"
 	"github.com/tkowalski/socgo/internal/service/post"
 	"github.com/tkowalski/socgo/web/templates"
 	"github.com/tkowalski/socgo/web/templates/component"
@@ -26,9 +29,10 @@ import (
 
 // WebHandler handles web page requests
 type WebHandler struct {
-	dbManager       *database.Manager
-	providerService *post.ProviderService
-	cache           *ComponentCache
+	dbManager           *database.Manager
+	providerService     *post.ProviderService
+	notificationService *notifications.Service
+	cache               *ComponentCache
 }
 
 // PageData holds common data for all pages
@@ -41,11 +45,12 @@ type PageData struct {
 }
 
 // NewWebHandler creates a new WebHandler instance
-func NewWebHandler(dbManager *database.Manager, providerService *post.ProviderService) *WebHandler {
+func NewWebHandler(dbManager *database.Manager, providerService *post.ProviderService, notificationService *notifications.Service) *WebHandler {
 	return &WebHandler{
-		dbManager:       dbManager,
-		providerService: providerService,
-		cache:           NewComponentCache(),
+		dbManager:           dbManager,
+		providerService:     providerService,
+		notificationService: notificationService,
+		cache:               NewComponentCache(),
 	}
 }
 
@@ -324,38 +329,58 @@ func (h *WebHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		message = "Post published successfully to all platforms:\n" + strings.Join(results, "\n")
 	}
 
+	// Create notifications for post results
+	if h.notificationService != nil {
+		if hasErrors {
+			h.notificationService.CreateNotification(
+				userID,
+				"post",
+				"warning",
+				"Post zakończony z błędami",
+				message,
+				nil,
+			)
+		} else {
+			h.notificationService.CreateNotification(
+				userID,
+				"post",
+				"success",
+				"Post opublikowany pomyślnie",
+				message,
+				nil,
+			)
+		}
+	}
+
 	// Check if this is an HTMX request
 	if r.Header.Get("HX-Request") == "true" {
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
 
-		var responseClass, icon string
 		if hasErrors {
-			responseClass = "bg-yellow-100 text-yellow-800"
-			icon = "⚠️"
+			responseClass := "bg-yellow-100 text-yellow-800"
+			icon := "⚠️"
+			responseHTML := fmt.Sprintf(`
+				<div class="p-4 %s rounded-lg">
+					<div class="font-medium">%s %s</div>
+					<pre class="mt-2 text-sm whitespace-pre-wrap">%s</pre>
+				</div>
+			`, responseClass, icon, "Post completed", message)
+			if _, err := w.Write([]byte(responseHTML)); err != nil {
+				log.Printf("Error writing response: %v", err)
+			}
 		} else {
-			responseClass = "bg-green-100 text-green-800"
-			icon = "✓"
+			// Renderuj komponent sukcesu
+			component.PostSuccess().Render(r.Context(), w)
 		}
-
-		responseHTML := fmt.Sprintf(`
-			<div class="p-4 %s rounded-lg">
-				<div class="font-medium">%s %s</div>
-				<pre class="mt-2 text-sm whitespace-pre-wrap">%s</pre>
-			</div>
-		`, responseClass, icon, "Post completed", message)
-
-		if _, err := w.Write([]byte(responseHTML)); err != nil {
-			log.Printf("Error writing response: %v", err)
-		}
-	} else {
-		// Regular form submission - redirect with flash message
-		flashType := "success"
-		if hasErrors {
-			flashType = "warning"
-		}
-		h.redirectWithFlash(w, r, "/posts", message, flashType)
+		return
 	}
+	// Regular form submission - redirect with flash message
+	flashType := "success"
+	if hasErrors {
+		flashType = "warning"
+	}
+	h.redirectWithFlash(w, r, "/posts", message, flashType)
 }
 
 // StatsHandlers for dashboard stats
@@ -695,13 +720,177 @@ func (h *WebHandler) HandleCacheStats(w http.ResponseWriter, r *http.Request) {
 
 // HandleFilePreview returns HTML for file preview
 func (h *WebHandler) HandleFilePreview(w http.ResponseWriter, r *http.Request) {
-	// This endpoint would receive file data and return preview HTML
-	// For now, it's a placeholder that would be called by JavaScript
 	w.Header().Set("Content-Type", "text/html")
 
-	// In a real implementation, you'd parse the file data from the request
-	// and return the appropriate preview HTML
-	component.FilePreviewContainer([]component.FilePreview{}).Render(r.Context(), w)
+	// Parse JSON data from request body
+	var requestData struct {
+		Files []struct {
+			Index    int    `json:"index"`
+			FileName string `json:"fileName"`
+			FileType string `json:"fileType"`
+			DataURL  string `json:"dataURL"`
+		} `json:"files"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
+		log.Printf("Error decoding JSON: %v", err)
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Received %d files for preview", len(requestData.Files))
+
+	// Convert to component data
+	var filePreviews []component.FilePreview
+	for _, file := range requestData.Files {
+		filePreviews = append(filePreviews, component.FilePreview{
+			Index:    file.Index,
+			FileName: file.FileName,
+			FileType: file.FileType,
+			DataURL:  file.DataURL,
+		})
+		log.Printf("File: %s, Type: %s", file.FileName, file.FileType)
+	}
+
+	// Render the preview HTML
+	component.FilePreviewContainer(filePreviews).Render(r.Context(), w)
+}
+
+// HandleNotificationBell handles notification bell requests
+func (h *WebHandler) HandleNotificationBell(w http.ResponseWriter, r *http.Request) {
+	userID := h.getUserID(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if h.notificationService == nil {
+		// Return empty bell if notification service is not available
+		var buf strings.Builder
+		component.NotificationBellIcon(0).Render(r.Context(), &buf)
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(buf.String()))
+		return
+	}
+
+	stats, err := h.notificationService.GetNotificationStats(userID)
+	if err != nil {
+		// Return empty bell on error
+		var buf strings.Builder
+		component.NotificationBellIcon(0).Render(r.Context(), &buf)
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(buf.String()))
+		return
+	}
+
+	var buf strings.Builder
+	component.NotificationBellIcon(stats.UnreadCount).Render(r.Context(), &buf)
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(buf.String()))
+}
+
+// HandleNotificationGroups handles notification groups requests
+func (h *WebHandler) HandleNotificationGroups(w http.ResponseWriter, r *http.Request) {
+	userID := h.getUserID(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if h.notificationService == nil {
+		// Return empty groups list if notification service is not available
+		var buf strings.Builder
+		component.NotificationGroupsList([]component.NotificationGroupData{}).Render(r.Context(), &buf)
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(buf.String()))
+		return
+	}
+
+	notificationType := r.URL.Query().Get("type")
+	groups, err := h.notificationService.GetNotificationGroups(userID, notificationType)
+	if err != nil {
+		// Return empty groups list on error
+		var buf strings.Builder
+		component.NotificationGroupsList([]component.NotificationGroupData{}).Render(r.Context(), &buf)
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(buf.String()))
+		return
+	}
+
+	// Convert to component data
+	var groupData []component.NotificationGroupData
+	for _, group := range groups {
+		groupData = append(groupData, component.NotificationGroupData{
+			GroupID:       group.GroupID,
+			Type:          group.Type,
+			Title:         group.Title,
+			LatestMessage: group.LatestMessage,
+			Count:         group.Count,
+			UnreadCount:   group.UnreadCount,
+			IsActive:      group.IsActive,
+			LatestAt:      group.LatestAt,
+			PostID:        group.PostID,
+		})
+	}
+
+	var buf strings.Builder
+	component.NotificationGroupsList(groupData).Render(r.Context(), &buf)
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(buf.String()))
+}
+
+// HandleNotificationDetails handles notification details requests
+func (h *WebHandler) HandleNotificationDetails(w http.ResponseWriter, r *http.Request) {
+	userID := h.getUserID(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	groupID := vars["groupID"]
+	if groupID == "" {
+		http.Error(w, "Group ID is required", http.StatusBadRequest)
+		return
+	}
+
+	notifications, err := h.notificationService.GetNotificationsByGroup(userID, groupID)
+	if err != nil {
+		http.Error(w, "Failed to get notification details", http.StatusInternalServerError)
+		return
+	}
+
+	// Convert to component data
+	var notificationData []component.NotificationData
+	for _, notification := range notifications {
+		notificationData = append(notificationData, component.NotificationData{
+			ID:        notification.ID,
+			UserID:    notification.UserID,
+			Type:      notification.Type,
+			Category:  notification.Category,
+			Title:     notification.Title,
+			Message:   notification.Message,
+			PostID:    notification.PostID,
+			GroupID:   notification.GroupID,
+			IsRead:    notification.IsRead,
+			IsActive:  notification.IsActive,
+			CreatedAt: notification.CreatedAt,
+			UpdatedAt: notification.UpdatedAt,
+		})
+	}
+
+	currentTab := r.URL.Query().Get("tab")
+	if currentTab == "" {
+		currentTab = "all"
+	}
+
+	var buf strings.Builder
+	component.NotificationDetailsList(notificationData, currentTab).Render(r.Context(), &buf)
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(buf.String()))
 }
 
 func (h *WebHandler) getUserID(r *http.Request) string {

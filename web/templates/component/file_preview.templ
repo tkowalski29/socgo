@@ -1,7 +1,6 @@
 package component
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -13,7 +12,7 @@ type FilePreview struct {
 }
 
 templ FilePreviewContainer(files []FilePreview) {
-	<div id="file-preview" class="flex-1 flex flex-wrap gap-2">
+	<div id="file-preview" class="flex-1 flex flex-wrap gap-2 items-center">
 		for _, file := range files {
 			<div class="relative group">
 				<div class="relative w-16 h-16">
@@ -22,16 +21,20 @@ templ FilePreviewContainer(files []FilePreview) {
 					} else if strings.HasPrefix(file.FileType, "video/") {
 						<video src={ file.DataURL } class="w-full h-full object-cover rounded-lg"></video>
 					}
-					<button 
-						type="button" 
-						data-index={ fmt.Sprint(file.Index) }
-						onclick="removeFile(this.dataset.index)"
-						class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
-					>
-						×
-					</button>
 				</div>
 			</div>
+		}
+		if len(files) > 0 {
+			<button 
+				type="button" 
+				onclick="clearAllFiles()"
+				title="Wyczyść wszystkie pliki"
+				class="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-full transition-colors"
+			>
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+				</svg>
+			</button>
 		}
 	</div>
 } 

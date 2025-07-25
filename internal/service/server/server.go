@@ -28,10 +28,13 @@ func New(container *di.Container) http.Handler {
 	postHandler := handlers.NewPostHandler(container.GetDBManager(), container.GetProviderService())
 
 	// Web handler (UI)
-	webHandler := handlers.NewWebHandler(container.GetDBManager(), container.GetProviderService())
+	webHandler := handlers.NewWebHandler(container.GetDBManager(), container.GetProviderService(), container.GetNotificationService())
 
 	// API token handler
 	apiTokenHandler := handlers.NewAPITokenHandler(container.GetDBManager())
+
+	// Notification handler
+	notificationHandler := handlers.NewNotificationHandler(container.GetNotificationService())
 
 	// Auth middleware
 	authMiddleware := middleware.NewAuthMiddleware(container.GetDBManager())
@@ -65,6 +68,17 @@ func New(container *di.Container) http.Handler {
 	r.HandleFunc("/api/cache/clear", webHandler.HandleCacheClear).Methods("POST")
 	r.HandleFunc("/api/cache/stats", webHandler.HandleCacheStats).Methods("GET")
 	r.HandleFunc("/api/file-preview", webHandler.HandleFilePreview).Methods("POST")
+
+	// Notification routes
+	r.HandleFunc("/api/notifications/stats", notificationHandler.HandleGetNotificationStats).Methods("GET")
+	r.HandleFunc("/api/notifications/groups", notificationHandler.HandleGetNotificationGroups).Methods("GET")
+	r.HandleFunc("/api/notifications/groups/{groupID}", notificationHandler.HandleGetNotificationsByGroup).Methods("GET")
+	r.HandleFunc("/api/notifications/groups/{groupID}/read", notificationHandler.HandleMarkGroupAsRead).Methods("POST")
+
+	// Notification UI routes
+	r.HandleFunc("/api/notifications/bell", webHandler.HandleNotificationBell).Methods("GET")
+	r.HandleFunc("/api/notifications/groups-ui", webHandler.HandleNotificationGroups).Methods("GET")
+	r.HandleFunc("/api/notifications/details/{groupID}", webHandler.HandleNotificationDetails).Methods("GET")
 
 	// OAuth routes
 	r.HandleFunc("/connect/{provider}", oauthHandler.HandleConnect).Methods("GET")

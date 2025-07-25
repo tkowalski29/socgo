@@ -1,0 +1,93 @@
+package component
+
+import (
+	"fmt"
+	"time"
+)
+
+type NotificationGroupData struct {
+	GroupID       string    `json:"group_id"`
+	Type          string    `json:"type"`
+	Title         string    `json:"title"`
+	LatestMessage string    `json:"latest_message"`
+	Count         int       `json:"count"`
+	UnreadCount   int       `json:"unread_count"`
+	IsActive      bool      `json:"is_active"`
+	LatestAt      time.Time `json:"latest_at"`
+	PostID        *uint     `json:"post_id,omitempty"`
+}
+
+templ NotificationGroupsList(groups []NotificationGroupData) {
+	if len(groups) == 0 {
+		<div class="flex flex-col items-center justify-center py-8 text-gray-500">
+			<svg class="w-12 h-12 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM10.5 3.75a6 6 0 00-6 6v3.75a6 6 0 006 6h3a6 6 0 006-6V9.75a6 6 0 00-6-6h-3z"></path>
+			</svg>
+			<p>Brak powiadomień</p>
+		</div>
+	} else {
+		for _, group := range groups {
+			<div 
+				class={ "p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors " + getGroupClasses(group) }
+				onclick="openNotificationGroup(this.dataset.groupId)"
+				data-group-id={ group.GroupID }
+			>
+				<div class="flex justify-between items-start">
+					<div class="flex-1">
+						<div class="flex items-center space-x-2">
+							<h4 class="font-medium text-gray-900">{ group.Title }</h4>
+							if group.UnreadCount > 0 {
+								<span class="bg-blue-500 text-white text-xs rounded-full px-2 py-1">
+									{ fmt.Sprint(group.UnreadCount) }
+								</span>
+							}
+						</div>
+						<p class="text-sm text-gray-600 mt-1">{ group.LatestMessage }</p>
+						<div class="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+							<span>{ formatGroupTime(group.LatestAt) }</span>
+							<span>{ fmt.Sprint(group.Count) } powiadomień</span>
+						</div>
+					</div>
+					<div class="flex items-center space-x-2">
+						if group.UnreadCount > 0 {
+							<button 
+								onclick="markGroupAsRead(this.dataset.groupId, event)"
+								data-group-id={ group.GroupID }
+								class="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50 transition-colors"
+								title="Oznacz jako przeczytane"
+							>
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+								</svg>
+							</button>
+						}
+					</div>
+				</div>
+			</div>
+		}
+	}
+}
+
+func getGroupClasses(group NotificationGroupData) string {
+	if group.UnreadCount > 0 {
+		return "bg-blue-50 border-l-4 border-l-blue-500"
+	}
+	return ""
+}
+
+func formatGroupTime(t time.Time) string {
+	now := time.Now()
+	diff := now.Sub(t)
+	
+	if diff < time.Minute {
+		return "Przed chwilą"
+	} else if diff < time.Hour {
+		minutes := int(diff.Minutes())
+		return fmt.Sprintf("%d min temu", minutes)
+	} else if diff < 24*time.Hour {
+		hours := int(diff.Hours())
+		return fmt.Sprintf("%d godz temu", hours)
+	} else {
+		return t.Format("02.01.2006 15:04")
+	}
+} 

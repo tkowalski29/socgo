@@ -37,7 +37,7 @@ func TestScheduler_E2E(t *testing.T) {
 	providerService := post.NewProviderService(dbManager, oauthService)
 
 	// Create scheduler
-	scheduler := New(dbManager, providerService)
+	scheduler := New(dbManager, providerService, nil)
 
 	userID := "test_user"
 

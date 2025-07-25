@@ -1,0 +1,22 @@
+package component
+
+import "fmt"
+
+templ NotificationBellIcon(unreadCount int64) {
+	<div class="relative">
+		<button 
+			id="notification-bell"
+			onclick="openNotificationSidebar()"
+			class="text-gray-600 hover:text-blue-600 transition-colors relative"
+		>
+			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM10.5 3.75a6 6 0 00-6 6v3.75a6 6 0 006 6h3a6 6 0 006-6V9.75a6 6 0 00-6-6h-3z"></path>
+			</svg>
+			if unreadCount > 0 {
+				<span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+					{ fmt.Sprint(unreadCount) }
+				</span>
+			}
+		</button>
+	</div>
+} 

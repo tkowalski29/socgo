@@ -1,0 +1,133 @@
+package component
+
+import (
+	"fmt"
+	"time"
+)
+
+type NotificationData struct {
+	ID        uint      `json:"id"`
+	UserID    string    `json:"user_id"`
+	Type      string    `json:"type"`
+	Category  string    `json:"category"`
+	Title     string    `json:"title"`
+	Message   string    `json:"message"`
+	PostID    *uint     `json:"post_id"`
+	GroupID   string    `json:"group_id"`
+	IsRead    bool      `json:"is_read"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+templ NotificationDetailsList(notifications []NotificationData, currentTab string) {
+	if len(notifications) == 0 {
+		<div class="flex flex-col items-center justify-center py-8 text-gray-500">
+			<p>Brak powiadomień w tej grupie</p>
+		</div>
+	} else {
+		<div class="mb-4">
+			<button 
+				onclick="switchNotificationTab(this.dataset.currentTab)"
+				data-current-tab={ currentTab }
+				class="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+			>
+				<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+				</svg>
+				Powrót do listy
+			</button>
+		</div>
+		for _, notification := range notifications {
+			<div class={ "p-3 border-b border-gray-100 " + getNotificationItemClasses(notification) }>
+				<div class="flex items-start space-x-3">
+					<div class={ "flex-shrink-0 w-2 h-2 rounded-full mt-2 " + getCategoryColor(notification.Category) }></div>
+					<div class="flex-1">
+						<h5 class="font-medium text-gray-900">{ notification.Title }</h5>
+						<p class="text-sm text-gray-600 mt-1">{ notification.Message }</p>
+						<div class="flex items-center justify-between mt-2">
+							<span class="text-xs text-gray-500">{ formatNotificationTime(notification.CreatedAt) }</span>
+							<div class="flex items-center space-x-2">
+								<span class={ "text-xs px-2 py-1 rounded " + getCategoryBadgeClasses(notification.Category) }>
+									{ getCategoryLabel(notification.Category) }
+								</span>
+								<span class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600">
+									{ notification.Type }
+								</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		}
+	}
+}
+
+func getNotificationItemClasses(notification NotificationData) string {
+	if !notification.IsRead {
+		return "bg-blue-50"
+	}
+	return ""
+}
+
+func getCategoryColor(category string) string {
+	switch category {
+	case "error":
+		return "bg-red-500"
+	case "success":
+		return "bg-green-500"
+	case "warning":
+		return "bg-yellow-500"
+	case "info":
+		return "bg-blue-500"
+	default:
+		return "bg-gray-500"
+	}
+}
+
+func getCategoryBadgeClasses(category string) string {
+	switch category {
+	case "error":
+		return "bg-red-100 text-red-800"
+	case "success":
+		return "bg-green-100 text-green-800"
+	case "warning":
+		return "bg-yellow-100 text-yellow-800"
+	case "info":
+		return "bg-blue-100 text-blue-800"
+	default:
+		return "bg-gray-100 text-gray-800"
+	}
+}
+
+func getCategoryLabel(category string) string {
+	switch category {
+	case "error":
+		return "Błąd"
+	case "success":
+		return "Sukces"
+	case "warning":
+		return "Ostrzeżenie"
+	case "info":
+		return "Informacja"
+	default:
+		return "Inne"
+	}
+}
+
+func formatNotificationTime(t time.Time) string {
+	now := time.Now()
+	diff := now.Sub(t)
+	
+	if diff < time.Minute {
+		return "Przed chwilą"
+	} else if diff < time.Hour {
+		minutes := int(diff.Minutes())
+		return fmt.Sprintf("%d min temu", minutes)
+	} else if diff < 24*time.Hour {
+		hours := int(diff.Hours())
+		return fmt.Sprintf("%d godz temu", hours)
+	} else {
+		return t.Format("02.01.2006 15:04")
+	}
+} 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/tkowalski/socgo/internal/data/config"
 	"github.com/tkowalski/socgo/internal/service/database"
+	"github.com/tkowalski/socgo/internal/service/notifications"
 	"github.com/tkowalski/socgo/internal/service/post"
 )
 
@@ -101,6 +102,20 @@ func (c *Container) GetProviderService() *post.ProviderService {
 	}
 
 	return providerService
+}
+
+func (c *Container) GetNotificationService() *notifications.Service {
+	service, err := c.Get("notification_service")
+	if err != nil {
+		panic(err)
+	}
+
+	notificationService, ok := service.(*notifications.Service)
+	if !ok {
+		panic("notification_service is not a *notifications.Service")
+	}
+
+	return notificationService
 }
 
 func (c *Container) GetConfig() *config.Config {

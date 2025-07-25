@@ -9,24 +9,27 @@ import (
 	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/data/provider"
 	"github.com/tkowalski/socgo/internal/service/database"
+	"github.com/tkowalski/socgo/internal/service/notifications"
 	"github.com/tkowalski/socgo/internal/service/post"
 	"gorm.io/gorm"
 )
 
 // Scheduler manages scheduled jobs execution
 type Scheduler struct {
-	dbManager       *database.Manager
-	providerService *post.ProviderService
-	ticker          *time.Ticker
-	stopChan        chan struct{}
+	dbManager           *database.Manager
+	providerService     *post.ProviderService
+	notificationService *notifications.Service
+	ticker              *time.Ticker
+	stopChan            chan struct{}
 }
 
 // New creates a new scheduler instance
-func New(dbManager *database.Manager, providerService *post.ProviderService) *Scheduler {
+func New(dbManager *database.Manager, providerService *post.ProviderService, notificationService *notifications.Service) *Scheduler {
 	return &Scheduler{
-		dbManager:       dbManager,
-		providerService: providerService,
-		stopChan:        make(chan struct{}),
+		dbManager:           dbManager,
+		providerService:     providerService,
+		notificationService: notificationService,
+		stopChan:            make(chan struct{}),
 	}
 }
 
@@ -151,6 +154,18 @@ func (s *Scheduler) processPublishPostJob(ctx context.Context, userID string, db
 			log.Printf("Warning: Failed to save failed post record for job %d: %v", job.ID, err)
 		}
 
+		// Create notification for failed scheduled post
+		if s.notificationService != nil {
+			s.notificationService.CreateNotification(
+				userID,
+				"schedule",
+				"error",
+				"Błąd publikacji zaplanowanego posta",
+				fmt.Sprintf("Nie udało się opublikować posta na %s: %s", job.Provider.Name, err.Error()),
+				nil,
+			)
+		}
+
 		return s.markJobFailed(db, job, "Failed to publish content: "+err.Error())
 	}
 
@@ -194,6 +209,19 @@ func (s *Scheduler) processPublishPostJob(ctx context.Context, userID string, db
 
 	if err := db.Save(job).Error; err != nil {
 		return err
+	}
+
+	// Create notification for successful scheduled post
+	if s.notificationService != nil {
+		postID := uint(post.ID)
+		s.notificationService.CreateNotification(
+			userID,
+			"schedule",
+			"success",
+			"Zaplanowany post opublikowany",
+			fmt.Sprintf("Post został opublikowany na %s o %s", job.Provider.Name, now.Format("02.01.2006 15:04")),
+			&postID,
+		)
 	}
 
 	log.Printf("Job %d completed successfully. Post ID: %s", job.ID, postID)
