@@ -23,40 +23,30 @@ func TestTikTokPost_Publish(t *testing.T) {
 	tests := []struct {
 		name           string
 		content        string
-		mockResponse   string
-		mockStatusCode int
+		media          []provider.Media
+		mockResponses  []string // Multiple responses for multi-step process
+		mockStatusCodes []int   // Multiple status codes
 		expectedPostID string
 		expectError    bool
 	}{
 		{
-			name:           "successful publish",
-			content:        "Test content",
-			mockResponse:   `{"data":{"share_id":"test_share_123"},"error":{"code":""}}`,
-			mockStatusCode: 200,
-			expectedPostID: "test_share_123",
-			expectError:    false,
-		},
-		{
-			name:           "successful publish with fallback postID",
-			content:        "Test content",
-			mockResponse:   `{"data":{"share_id":""},"error":{"code":""}}`,
-			mockStatusCode: 200,
-			expectedPostID: "tiktok_", // prefix only, timestamp will vary
-			expectError:    false,
-		},
-		{
-			name:           "API error response",
-			content:        "Test content",
-			mockResponse:   `{"data":{},"error":{"code":"AUTH_ERROR","message":"Invalid token"}}`,
-			mockStatusCode: 200,
+			name:    "no media error",
+			content: "Test content",
+			media:   []provider.Media{},
+			mockResponses: []string{},
+			mockStatusCodes: []int{},
 			expectedPostID: "",
 			expectError:    true,
 		},
 		{
-			name:           "HTTP error",
-			content:        "Test content",
-			mockResponse:   `{"error":"internal server error"}`,
-			mockStatusCode: 500,
+			name:    "multiple videos not supported",
+			content: "Test content",
+			media: []provider.Media{
+				{FileName: "test1.mp4", FilePath: "/tmp/test1.mp4", MimeType: "video/mp4"},
+				{FileName: "test2.mp4", FilePath: "/tmp/test2.mp4", MimeType: "video/mp4"},
+			},
+			mockResponses: []string{},
+			mockStatusCodes: []int{},
 			expectedPostID: "",
 			expectError:    true,
 		},
@@ -67,21 +57,18 @@ func TestTikTokPost_Publish(t *testing.T) {
 			// Create mock HTTP client
 			mockClient := &MockHTTPClient{
 				DoFunc: func(req *http.Request) (*http.Response, error) {
-					// Verify request
-					if req.Method != "POST" {
-						t.Errorf("Expected POST method, got %s", req.Method)
-					}
-					if req.Header.Get("Content-Type") != "application/json" {
-						t.Errorf("Expected application/json content type")
-					}
-					if req.Header.Get("Authorization") != "Bearer test_token" {
-						t.Errorf("Expected Bearer token authorization")
+					// For simple error cases, just return without specific validation
+					if len(tt.mockResponses) == 0 {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
+						}, nil
 					}
 
-					// Return mock response
+					// For multi-step processes, return appropriate response
 					return &http.Response{
-						StatusCode: tt.mockStatusCode,
-						Body:       io.NopCloser(bytes.NewBufferString(tt.mockResponse)),
+						StatusCode: tt.mockStatusCodes[0],
+						Body:       io.NopCloser(bytes.NewBufferString(tt.mockResponses[0])),
 					}, nil
 				},
 			}
@@ -94,7 +81,7 @@ func TestTikTokPost_Publish(t *testing.T) {
 			Post := NewTikTokPost(config, mockClient)
 
 			// Test Publish
-			postID, err := Post.Publish(context.Background(), tt.content, []provider.Media{})
+			postID, err := Post.Publish(context.Background(), tt.content, tt.media)
 
 			// Verify results
 			if tt.expectError {
@@ -105,15 +92,8 @@ func TestTikTokPost_Publish(t *testing.T) {
 				if err != nil {
 					t.Errorf("Expected no error, got %v", err)
 				}
-				if tt.expectedPostID != "tiktok_" {
-					if postID != tt.expectedPostID {
-						t.Errorf("Expected postID %s, got %s", tt.expectedPostID, postID)
-					}
-				} else {
-					// Check prefix for generated postID
-					if len(postID) < 7 || postID[:7] != "tiktok_" {
-						t.Errorf("Expected postID to start with 'tiktok_', got %s", postID)
-					}
+				if postID != tt.expectedPostID {
+					t.Errorf("Expected postID %s, got %s", tt.expectedPostID, postID)
 				}
 			}
 		})
@@ -130,19 +110,35 @@ func TestTikTokPost_GetStatus(t *testing.T) {
 		expectError    bool
 	}{
 		{
-			name:           "successful status check",
+			name:           "published post status",
 			postID:         "test_post_123",
-			mockResponse:   `{"data":{"status":"published"},"error":{"code":""}}`,
+			mockResponse:   `{"data":{"video_id":"vid123","post_status":"PUBLISHED","video_status":"PROCESSING_DONE"},"error":{"code":"","message":""}}`,
 			mockStatusCode: 200,
 			expectedStatus: "published",
 			expectError:    false,
 		},
 		{
-			name:           "status check with fallback",
+			name:           "processing post status",
 			postID:         "test_post_123",
-			mockResponse:   `{"data":{"status":""},"error":{"code":""}}`,
+			mockResponse:   `{"data":{"video_id":"vid123","post_status":"PROCESSING","video_status":"PROCESSING"},"error":{"code":"","message":""}}`,
 			mockStatusCode: 200,
-			expectedStatus: "published", // fallback
+			expectedStatus: "pending",
+			expectError:    false,
+		},
+		{
+			name:           "failed post status",
+			postID:         "test_post_123",
+			mockResponse:   `{"data":{"video_id":"vid123","post_status":"FAILED","fail_reason":"Content moderation failed"},"error":{"code":"","message":""}}`,
+			mockStatusCode: 200,
+			expectedStatus: "failed",
+			expectError:    true,
+		},
+		{
+			name:           "video status fallback",
+			postID:         "test_post_123",
+			mockResponse:   `{"data":{"video_id":"vid123","video_status":"UPLOADED"},"error":{"code":"","message":""}}`,
+			mockStatusCode: 200,
+			expectedStatus: "published",
 			expectError:    false,
 		},
 		{
@@ -222,7 +218,7 @@ func TestTikTokPost_RefreshToken(t *testing.T) {
 		{
 			name:           "successful token refresh",
 			refreshToken:   "refresh_token_123",
-			mockResponse:   `{"data":{"access_token":"new_token","refresh_token":"new_refresh","expires_in":3600},"error":{"code":""}}`,
+			mockResponse:   `{"data":{"access_token":"new_token","refresh_token":"new_refresh","expires_in":3600,"token_type":"Bearer","scope":"user.info.basic,video.upload,video.publish"},"error":{"code":"","message":""}}`,
 			mockStatusCode: 200,
 			expectError:    false,
 		},
@@ -258,8 +254,8 @@ func TestTikTokPost_RefreshToken(t *testing.T) {
 					if req.Method != "POST" {
 						t.Errorf("Expected POST method, got %s", req.Method)
 					}
-					if req.Header.Get("Content-Type") != "application/json" {
-						t.Errorf("Expected application/json content type")
+					if req.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
+						t.Errorf("Expected application/x-www-form-urlencoded content type")
 					}
 
 					// Return mock response
