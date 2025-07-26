@@ -1,170 +1,72 @@
-# Code Generation Manager
+# SocGo - Social Media Management Platform
 
-Zaawansowany system zarządzania generowaniem kodu z AI napisany w Go.
+SocGo to nowoczesna platforma do zarządzania treściami w mediach społecznościowych, obsługująca TikTok, Instagram i Facebook. Umożliwia planowanie, publikowanie i zarządzanie postami w różnych serwisach społecznościowych z jednego miejsca.
 
-## 🎯 Dlaczego Code Generation Manager?
+## 🚀 Funkcjonalności
 
-Code Generation Manager to zaawansowany system, który umożliwia:
+- **Multi-Platform Support**: Obsługa TikTok, Instagram i Facebook
+- **OAuth Authentication**: Bezpieczne uwierzytelnianie z dostawcami
+- **Post Scheduling**: Planowanie publikacji postów
+- **File Management**: Obsługa plików multimedialnych
+- **Notifications**: System powiadomień o statusie postów
+- **Web Interface**: Responsywny interfejs użytkownika
 
-- **🚀 Automatyzację** procesów generowania kodu
-- **📊 Monitorowanie** kosztów i użycia AI
-- **⚙️ Zarządzanie** zadaniami i kolejkami
-- **🔗 Integrację** z różnymi executorami
-- **🛡️ Bezpieczeństwo** i kontrolę dostępu
+## 🏗️ Architektura
 
-## 🏗️ Architektura systemu
+SocGo jest zbudowany w Go z wykorzystaniem:
 
-```mermaid
-graph TB
-    subgraph "Frontend"
-        UI[🌐 Web Interface]
-        API[🔌 API Client]
-    end
-    
-    subgraph "Backend Core"
-        Main[🎯 Main Application]
-        Router[🛣️ HTTP Router]
-        DI[🔧 Dependency Injection]
-    end
-    
-    subgraph "Services"
-        TaskMgr[📋 Task Manager]
-        QueueSvc[🔄 Queue Service]
-        ChatSvc[💬 Chat Service]
-        MonitorSvc[📊 Monitoring Service]
-    end
-    
-    subgraph "Executors"
-        DockerExec[🐳 Docker Executor]
-        ClaudeExec[🤖 Claude Executor]
-        CustomExec[⚙️ Custom Executor]
-    end
-    
-    subgraph "Storage"
-        FileStorage[💾 File Storage]
-        ConfigStorage[⚙️ Config Storage]
-        LogStorage[📝 Log Storage]
-    end
-    
-    subgraph "External"
-        ClaudeAPI[🤖 Claude API]
-        DockerAPI[🐳 Docker API]
-        Webhooks[🔗 Webhooks]
-    end
-    
-    UI --> API
-    API --> Router
-    Router --> Main
-    Main --> DI
-    DI --> TaskMgr
-    DI --> QueueSvc
-    DI --> ChatSvc
-    DI --> MonitorSvc
-    
-    TaskMgr --> DockerExec
-    TaskMgr --> ClaudeExec
-    TaskMgr --> CustomExec
-    
-    ChatSvc --> ClaudeExec
-    MonitorSvc --> ClaudeAPI
-    
-    DockerExec --> DockerAPI
-    ClaudeExec --> ClaudeAPI
-    
-    TaskMgr --> FileStorage
-    Main --> ConfigStorage
-    Main --> LogStorage
-    
-    MonitorSvc --> Webhooks
+- **Backend**: Go 1.24.3 z Gorilla Mux
+- **Database**: SQLite z GORM ORM
+- **Templates**: Templ dla server-side rendering
+- **Frontend**: Vanilla JavaScript z CSS
+
+## 📋 Struktura projektu
+
+```
+socgo/
+├── internal/           # Kod źródłowy aplikacji
+│   ├── data/          # Warstwa danych
+│   ├── handlers/      # HTTP handlers
+│   ├── service/       # Logika biznesowa
+│   └── social/        # Integracje z platformami
+├── web/               # Frontend (templates, static files)
+├── uploads/           # Przesłane pliki
+└── .doc/              # Dokumentacja
 ```
 
-## 🔄 Przepływ danych
+## 🛠️ Quick Start
 
-```mermaid
-sequenceDiagram
-    participant U as 👤 User
-    participant API as 🔌 API
-    participant TM as 📋 Task Manager
-    participant QS as 🔄 Queue Service
-    participant EX as ⚙️ Executor
-    participant S as 💾 Storage
-    
-    U->>API: 📝 Create Task
-    API->>TM: 🔄 Process Task
-    TM->>QS: 📥 Add to Queue
-    QS->>EX: 🚀 Execute Task
-    EX->>S: 💾 Save Results
-    EX->>API: ✅ Return Status
-    API->>U: 📊 Task Complete
-```
+1. **Klonowanie repozytorium**
+   ```bash
+   git clone https://github.com/tkowalski/socgo.git
+   cd socgo
+   ```
 
-## 🚀 Szybki start
+2. **Konfiguracja**
+   ```bash
+   cp config.yml.example config.yml
+   # Edytuj config.yml z własnymi kluczami API
+   ```
 
-```bash
-# 📥 Klonuj repozytorium
-git clone https://github.com/your-username/code-gen-manager.git
-cd code-gen-manager
+3. **Uruchomienie**
+   ```bash
+   go run main.go
+   ```
 
-# ⚙️ Skopiuj konfigurację
-cp config.example.yml config.yml
+4. **Dostęp do aplikacji**
+   - Otwórz przeglądarkę na `http://localhost:8080`
 
-# 🚀 Uruchom aplikację
-go run main.go
-```
+## 📚 Dokumentacja
 
-## 📖 Dokumentacja
-
-### 🏗️ Architektura i design
-- **[🏗️ Przegląd architektury](./architecture/)** - Struktura systemu i wzorce projektowe
-- **[🔧 Dependency Injection](./architecture/overview.md)** - Zarządzanie zależnościami
-
-### 🔌 API i integracje
-- **[🔌 API Reference](./api/)** - Pełna dokumentacja REST API
-- **[📋 Endpointy](./api/endpoints.md)** - Lista wszystkich endpointów
-
-### ⚙️ Konfiguracja i deployment
-- **[⚙️ Konfiguracja](./configuration/)** - Ustawienia systemu
-- **[📄 Plik konfiguracyjny](./configuration/config-file.md)** - Opis pliku `config.yml`
-- **[🚀 Deployment](./deployment/)** - Wdrażanie systemu
-- **[📦 Instalacja](./deployment/installation.md)** - Instrukcje instalacji
-
-### 🛠️ Development i contributing
-- **[🛠️ Development](./development/)** - Rozwój systemu
-- **[🏗️ Struktura kodu](./development/code-structure.md)** - Organizacja kodu
-- **[🧪 Testy](./development/testing.md)** - Pisanie i uruchamianie testów
-- **[🤝 Contributing](./development/contributing.md)** - Jak współtworzyć projekt
-
-### 🎯 Funkcjonalności
-- **[🎯 Funkcjonalności](./features/)** - Przegląd wszystkich funkcji
-- **[📋 Zarządzanie zadaniami](./features/task-management/)** - Tworzenie i zarządzanie zadaniami
-- **[🔄 System kolejek](./features/queue-system/)** - Kolejkowanie i przetwarzanie
-- **[💬 Chat z AI](./features/chat-system/)** - Interaktywny chat
-- **[📊 Monitorowanie Claude](./features/claude-monitoring/)** - Statystyki użycia
-- **[🔍 Monitorowanie wzorców](./features/pattern-monitoring/)** - Analiza wzorców
-
-## 🛠️ Technologie
-
-| Kategoria | Technologia | Opis |
-|-----------|-------------|------|
-| **🔧 Backend** | Go (Golang) | Główny język aplikacji |
-| **🌐 Frontend** | Vue.js + Templ | Interfejs użytkownika |
-| **🤖 AI** | Claude API, GPT | Modele AI |
-| **🐳 Containerization** | Docker | Izolacja środowisk |
-| **💾 Database** | File-based storage | Przechowywanie danych |
-| **📚 Documentation** | VitePress | Dokumentacja techniczna |
-
-## 📊 Statystyki projektu
-
-```mermaid
-pie title Struktura kodu
-    "🔧 Internal Services" : 35
-    "🌐 Web Interface" : 25
-    "📋 Task Management" : 20
-    "🔄 Queue System" : 15
-    "📊 Monitoring" : 5
-```
+- [Architecture Overview](/architecture/) - Przegląd architektury systemu
+- [API Reference](/api/) - Dokumentacja API
+- [User Guide](/guide/) - Przewodnik użytkownika
+- [Provider Integration](/providers/) - Integracje z platformami społecznościowymi
 
 ## 🤝 Contributing
 
-Zapraszamy do współpracy! Sprawdź **[🤝 Contributing Guide](./development/contributing.md)** aby dowiedzieć się więcej.
+Więcej informacji o współtworzeniu projektu znajdziesz w sekcji [Development](/development/contributing).
 
+## 📄 License
+
+Ten projekt jest na licencji MIT.
