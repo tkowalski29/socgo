@@ -35,6 +35,7 @@
       "Bash(git checkout -b:*)",
       "Bash(git push:*)",
       "WebFetch(domain:github.com)",
+      "Bash(TZ:*)",
       "Edit(*)"
     ],
     "deny": []

@@ -55,7 +55,7 @@ var SupportedProviders = map[ProviderType]ProviderMetadata{
 		AuthURL:     "https://www.tiktok.com/v2/auth/authorize/",
 		TokenURL:    "https://open.tiktokapis.com/v2/oauth/token/",
 		UserInfoURL: "https://open.tiktokapis.com/v2/user/info/",
-		Scopes:      []string{"user.info.basic"},
+		Scopes:      []string{"user.info.basic", "video.upload", "video.publish"},
 		RedirectURI: "/oauth/callback/tiktok",
 	},
 	ProviderTypeInstagram: {

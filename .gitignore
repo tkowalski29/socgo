@@ -15,6 +15,9 @@ __debug_bin*
 # Configuration files with sensitive data
 config.yml
 .env
+.claude/agents/*
+.claude/commands/*
+.spec/*
 
 # Uploaded files
 uploads/

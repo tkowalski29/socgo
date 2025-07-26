@@ -5,8 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"net/url"
+	"os"
+	"strings"
 	"time"
+
+	"log"
 
 	"github.com/tkowalski/socgo/internal/data/provider"
 )
@@ -25,51 +32,161 @@ func NewInstagramPost(config *provider.ProviderConfig, httpClient provider.HTTPC
 	}
 }
 
-// Publish publishes content to Instagram
+// Publish publishes content to Instagram using proper Instagram Graph API
 func (p *InstagramPost) Publish(ctx context.Context, content string, media []provider.Media) (postID string, err error) {
-	// Instagram Basic Display API endpoint for publishing (mock implementation)
-	url := fmt.Sprintf("https://graph.instagram.com/%s/media", p.Config.UserID)
-
-	// Prepare request payload
-	payload := map[string]interface{}{
-		"caption":      content,
-		"media_type":   "CAROUSEL_ALBUM",
-		"access_token": p.Config.AccessToken,
-	}
-
-	// Add media information if available
+	log.Printf("Instagram Publish called with content: %s", content)
+	
+	// Instagram requires 2-step publishing process:
+	// 1. Create media container(s)
+	// 2. Publish the container(s)
+	
 	if len(media) > 0 {
-		// For now, just log that media was provided
-		// Instagram API implementation would need to be expanded
-		payload["media_count"] = len(media)
+		// Publish with media using Instagram Graph API
+		return p.publishWithMedia(ctx, content, media)
+	}
+	
+	// For text-only posts, Instagram doesn't support them directly
+	// Instagram requires at least one media item for posts
+	return "", fmt.Errorf("Instagram posts require at least one media item (image or video)")
+}
+
+// publishWithMedia publishes Instagram post with media using proper Instagram Graph API
+func (p *InstagramPost) publishWithMedia(ctx context.Context, content string, media []provider.Media) (string, error) {
+	if len(media) == 0 {
+		return "", fmt.Errorf("no media provided")
 	}
 
-	jsonPayload, err := json.Marshal(payload)
+	// For single media, use single media publishing
+	if len(media) == 1 {
+		return p.publishSingleMedia(ctx, content, media[0])
+	}
+
+	// For multiple media, use carousel publishing
+	return p.publishCarousel(ctx, content, media)
+}
+
+// publishSingleMedia publishes a single image/video to Instagram
+func (p *InstagramPost) publishSingleMedia(ctx context.Context, content string, media provider.Media) (string, error) {
+	// Step 1: Create media container
+	containerID, err := p.createMediaContainer(ctx, content, media, "")
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal payload: %w", err)
+		return "", fmt.Errorf("failed to create media container: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonPayload))
+	// Step 2: Publish the container
+	publishedID, err := p.publishContainer(ctx, containerID)
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
+		return "", fmt.Errorf("failed to publish media container: %w", err)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+p.Config.AccessToken)
+	return publishedID, nil
+}
 
-	resp, err := p.HttpClient.Do(req)
+// publishCarousel publishes multiple images as a carousel to Instagram
+func (p *InstagramPost) publishCarousel(ctx context.Context, content string, media []provider.Media) (string, error) {
+	var childContainers []string
+
+	// Step 1: Create child containers for each media item
+	for _, m := range media {
+		containerID, err := p.createMediaContainer(ctx, "", m, "CAROUSEL_ALBUM")
+		if err != nil {
+			return "", fmt.Errorf("failed to create child container for %s: %w", m.FileName, err)
+		}
+		childContainers = append(childContainers, containerID)
+	}
+
+	// Step 2: Create parent carousel container
+	carouselContainerID, err := p.createCarouselContainer(ctx, content, childContainers)
+	if err != nil {
+		return "", fmt.Errorf("failed to create carousel container: %w", err)
+	}
+
+	// Step 3: Publish the carousel
+	publishedID, err := p.publishContainer(ctx, carouselContainerID)
+	if err != nil {
+		return "", fmt.Errorf("failed to publish carousel: %w", err)
+	}
+
+	return publishedID, nil
+}
+
+// createMediaContainer creates a media container on Instagram
+func (p *InstagramPost) createMediaContainer(ctx context.Context, caption string, media provider.Media, mediaType string) (string, error) {
+	// Instagram Graph API endpoint for creating media containers
+	apiURL := fmt.Sprintf("https://graph.facebook.com/v18.0/%s/media", p.Config.UserID)
+
+	// Determine media type if not specified
+	if mediaType == "" {
+		mediaType = "IMAGE"
+		if strings.Contains(strings.ToLower(media.MimeType), "video") {
+			mediaType = "VIDEO"
+		}
+	}
+
+	// Prepare form data
+	var b bytes.Buffer
+	writer := multipart.NewWriter(&b)
+
+	// Add access token
+	if err := writer.WriteField("access_token", p.Config.AccessToken); err != nil {
+		return "", fmt.Errorf("failed to write access_token field: %w", err)
+	}
+
+	// Add media type
+	if err := writer.WriteField("media_type", mediaType); err != nil {
+		return "", fmt.Errorf("failed to write media_type field: %w", err)
+	}
+
+	// Add caption if provided
+	if caption != "" {
+		if err := writer.WriteField("caption", caption); err != nil {
+			return "", fmt.Errorf("failed to write caption field: %w", err)
+		}
+	}
+
+	// Upload file directly
+	if media.FilePath != "" {
+		// Upload file directly
+		file, err := os.Open(media.FilePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to open file %s: %w", media.FilePath, err)
+		}
+		defer file.Close()
+
+		fieldName := "source"
+		if mediaType == "VIDEO" {
+			fieldName = "video_url" // Instagram requires video_url for videos
+		}
+
+		part, err := writer.CreateFormFile(fieldName, media.FileName)
+		if err != nil {
+			return "", fmt.Errorf("failed to create form file: %w", err)
+		}
+
+		if _, err := io.Copy(part, file); err != nil {
+			return "", fmt.Errorf("failed to copy file data: %w", err)
+		}
+	} else {
+		return "", fmt.Errorf("no file path provided")
+	}
+
+	writer.Close()
+
+	// Make the request
+	resp, err := http.Post(apiURL, writer.FormDataContentType(), &b)
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			// Log error but don't fail the operation
-			_ = err // explicitly ignore error
-		}
-	}()
+	defer resp.Body.Close()
+
+	// Read response
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API request failed with status: %d", resp.StatusCode)
+		return "", fmt.Errorf("create container failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	// Parse response
@@ -83,7 +200,7 @@ func (p *InstagramPost) Publish(ctx context.Context, content string, media []pro
 		} `json:"error"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
 		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -92,27 +209,137 @@ func (p *InstagramPost) Publish(ctx context.Context, content string, media []pro
 			response.Error.Message, response.Error.Type, response.Error.Code)
 	}
 
-	// Return post ID from response
-	if response.ID != "" {
-		return response.ID, nil
-	}
-
-	// Generate fake postID for testing if no real ID returned
-	return fmt.Sprintf("instagram_%d", time.Now().UnixNano()), nil
+	return response.ID, nil
 }
 
-// GetStatus retrieves the status of a published post
+// createCarouselContainer creates a carousel container for multiple media
+func (p *InstagramPost) createCarouselContainer(ctx context.Context, caption string, childContainers []string) (string, error) {
+	// Instagram Graph API endpoint for creating carousel containers
+	apiURL := fmt.Sprintf("https://graph.facebook.com/v18.0/%s/media", p.Config.UserID)
+
+	// Prepare form data
+	data := url.Values{}
+	data.Set("access_token", p.Config.AccessToken)
+	data.Set("media_type", "CAROUSEL_ALBUM")
+	data.Set("caption", caption)
+
+	// Add child containers
+	for i, containerID := range childContainers {
+		data.Set(fmt.Sprintf("children[%d]", i), containerID)
+	}
+
+	// Make the request using injected HTTP client
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := p.HttpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("create carousel container failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Parse response
+	var response struct {
+		ID    string `json:"id"`
+		Error struct {
+			Message   string `json:"message"`
+			Type      string `json:"type"`
+			Code      int    `json:"code"`
+			ErrorCode int    `json:"error_code"`
+		} `json:"error"`
+	}
+
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if response.Error.Message != "" {
+		return "", fmt.Errorf("Instagram API error: %s (type: %s, code: %d)",
+			response.Error.Message, response.Error.Type, response.Error.Code)
+	}
+
+	return response.ID, nil
+}
+
+// publishContainer publishes a created media container
+func (p *InstagramPost) publishContainer(ctx context.Context, containerID string) (string, error) {
+	// Instagram Graph API endpoint for publishing containers
+	apiURL := fmt.Sprintf("https://graph.facebook.com/v18.0/%s/media_publish", p.Config.UserID)
+
+	// Prepare form data
+	data := url.Values{}
+	data.Set("access_token", p.Config.AccessToken)
+	data.Set("creation_id", containerID)
+
+	// Make the request using injected HTTP client
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := p.HttpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("publish container failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Parse response
+	var response struct {
+		ID    string `json:"id"`
+		Error struct {
+			Message   string `json:"message"`
+			Type      string `json:"type"`
+			Code      int    `json:"code"`
+			ErrorCode int    `json:"error_code"`
+		} `json:"error"`
+	}
+
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if response.Error.Message != "" {
+		return "", fmt.Errorf("Instagram API error: %s (type: %s, code: %d)",
+			response.Error.Message, response.Error.Type, response.Error.Code)
+	}
+
+	return response.ID, nil
+}
+
+// GetStatus retrieves the status of a published post using Instagram Graph API
 func (p *InstagramPost) GetStatus(ctx context.Context, postID string) (status string, err error) {
-	// Instagram Basic Display API endpoint for getting post status (mock implementation)
-	url := fmt.Sprintf("https://graph.instagram.com/%s?fields=id,media_type,permalink,timestamp&access_token=%s",
+	// Instagram Graph API endpoint for getting post status
+	url := fmt.Sprintf("https://graph.facebook.com/v18.0/%s?fields=id,media_type,permalink,timestamp,media_url&access_token=%s",
 		postID, p.Config.AccessToken)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
-
-	req.Header.Set("Authorization", "Bearer "+p.Config.AccessToken)
 
 	resp, err := p.HttpClient.Do(req)
 	if err != nil {
@@ -125,8 +352,14 @@ func (p *InstagramPost) GetStatus(ctx context.Context, postID string) (status st
 		}
 	}()
 
+	// Read response body for better error information
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API request failed with status: %d", resp.StatusCode)
+		return "", fmt.Errorf("API request failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	// Parse response
@@ -135,14 +368,16 @@ func (p *InstagramPost) GetStatus(ctx context.Context, postID string) (status st
 		MediaType string `json:"media_type"`
 		Permalink string `json:"permalink"`
 		Timestamp string `json:"timestamp"`
+		MediaURL  string `json:"media_url"`
 		Error     struct {
-			Message string `json:"message"`
-			Type    string `json:"type"`
-			Code    int    `json:"code"`
+			Message   string `json:"message"`
+			Type      string `json:"type"`
+			Code      int    `json:"code"`
+			ErrorCode int    `json:"error_code"`
 		} `json:"error"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
 		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -151,39 +386,38 @@ func (p *InstagramPost) GetStatus(ctx context.Context, postID string) (status st
 			response.Error.Message, response.Error.Type, response.Error.Code)
 	}
 
-	// Return status based on response or default to published for mock
-	if response.ID != "" && response.Permalink != "" {
+	// Return status based on response
+	if response.ID != "" && response.Timestamp != "" {
 		return string(provider.PostStatusPublished), nil
 	}
 
 	return string(provider.PostStatusPending), nil
 }
 
-// RefreshToken refreshes the access token
+// RefreshToken refreshes the access token using Instagram Graph API
 func (p *InstagramPost) RefreshToken(ctx context.Context) error {
 	if p.Config.RefreshToken == "" {
 		return fmt.Errorf("no refresh token available")
 	}
 
-	// Instagram Basic Display API endpoint for token refresh (mock implementation)
-	url := "https://graph.instagram.com/refresh_access_token"
+	// Instagram uses Facebook's token refresh mechanism
+	// Since Instagram Business accounts use Facebook page tokens, 
+	// we use Facebook's token exchange endpoint
+	apiURL := "https://graph.facebook.com/v18.0/oauth/access_token"
 
-	payload := map[string]interface{}{
-		"grant_type":   "ig_refresh_token",
-		"access_token": p.Config.AccessToken,
-	}
+	// Prepare form data
+	data := url.Values{}
+	data.Set("grant_type", "fb_exchange_token")
+	data.Set("client_id", "your_app_id") // This should come from config
+	data.Set("client_secret", "your_app_secret") // This should come from config  
+	data.Set("fb_exchange_token", p.Config.AccessToken)
 
-	jsonPayload, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal payload: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, bytes.NewBuffer(jsonPayload))
+	// Make the request using injected HTTP client
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(data.Encode()))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
-
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := p.HttpClient.Do(req)
 	if err != nil {
@@ -196,8 +430,14 @@ func (p *InstagramPost) RefreshToken(ctx context.Context) error {
 		}
 	}()
 
+	// Read response body
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("token refresh failed with status: %d", resp.StatusCode)
+		return fmt.Errorf("token refresh failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	// Parse response
@@ -206,13 +446,14 @@ func (p *InstagramPost) RefreshToken(ctx context.Context) error {
 		TokenType   string `json:"token_type"`
 		ExpiresIn   int64  `json:"expires_in"`
 		Error       struct {
-			Message string `json:"message"`
-			Type    string `json:"type"`
-			Code    int    `json:"code"`
+			Message   string `json:"message"`
+			Type      string `json:"type"`
+			Code      int    `json:"code"`
+			ErrorCode int    `json:"error_code"`
 		} `json:"error"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
 		return fmt.Errorf("failed to decode response: %w", err)
 	}
 
