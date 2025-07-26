@@ -1,1 +1,0 @@
-/Users/tkowalski/Library/CloudStorage/GoogleDrive-tkowalski@iseno.net/Mój dysk/CodeGen/SocGo/SG6/sessions/session-1/CLAUDE_SG6_history.md
