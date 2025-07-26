@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default defineConfig({
+export default withMermaid(defineConfig({
   title: 'SocGo Documentation',
   description: 'Platforma do zarządzania treściami w mediach społecznościowych',
   
@@ -93,9 +94,8 @@ export default defineConfig({
     }
   },
 
-  markdown: {
-    config: (md) => {
-      md.use(require('markdown-it-mermaid').default)
-    }
+  mermaid: {
+    // mermaid configuration options
   }
-})
+
+}))
