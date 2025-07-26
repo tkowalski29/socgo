@@ -228,8 +228,14 @@ func (p *InstagramPost) createCarouselContainer(ctx context.Context, caption str
 		data.Set(fmt.Sprintf("children[%d]", i), containerID)
 	}
 
-	// Make the request
-	resp, err := http.PostForm(apiURL, data)
+	// Make the request using injected HTTP client
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := p.HttpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
@@ -278,8 +284,14 @@ func (p *InstagramPost) publishContainer(ctx context.Context, containerID string
 	data.Set("access_token", p.Config.AccessToken)
 	data.Set("creation_id", containerID)
 
-	// Make the request
-	resp, err := http.PostForm(apiURL, data)
+	// Make the request using injected HTTP client
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := p.HttpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
@@ -400,8 +412,14 @@ func (p *InstagramPost) RefreshToken(ctx context.Context) error {
 	data.Set("client_secret", "your_app_secret") // This should come from config  
 	data.Set("fb_exchange_token", p.Config.AccessToken)
 
-	// Make the request
-	resp, err := http.PostForm(apiURL, data)
+	// Make the request using injected HTTP client
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := p.HttpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to make request: %w", err)
 	}
