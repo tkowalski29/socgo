@@ -1,0 +1,24 @@
+[build]
+  base = "/"
+  publish = ".doc/.vitepress/dist"
+  command = "cd .doc && npm ci && npx vitepress build ."
+  # Wyłącz automatyczne budowanie - używamy GitHub Actions
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF .doc/"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# SPA redirects - wszystkie ścieżki prowadzą do index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[context.production.environment]
+  NODE_ENV = "production"
+
+[context.deploy-preview.environment]
+  NODE_ENV = "preview"
+
+[context.branch-deploy.environment]
+  NODE_ENV = "development" 
