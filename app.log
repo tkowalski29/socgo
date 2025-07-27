@@ -1,0 +1,6 @@
+2025/07/27 21:48:44 No .env file found, using defaults and environment variables
+2025/07/27 21:48:44 Server will start on: localhost:8081
+2025/07/27 21:48:44 Base URL for OAuth: https://493750518f1f.ngrok-free.app
+2025/07/27 21:48:44 Starting post scheduler...
+2025/07/27 21:48:44 Processing pending posts...
+2025/07/27 21:48:44 Starting server on localhost:8081

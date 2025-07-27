@@ -1,6 +1,6 @@
-// Simple Post Sidebar Handler
+// Simple Post Sidebar Handler - VERSION 20250727
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('Post sidebar simple handler loaded');
+  console.log('Post sidebar simple handler loaded - VERSION 20250727');
   
   // Initialize when sidebar opens
   window.openPostSidebar = function() {
@@ -134,6 +134,12 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // Handle provider selection
+  // Clear provider settings cache
+  function clearProviderSettingsCache() {
+    providerSettingsCache = {};
+    console.log('Cleared provider settings cache');
+  }
+  
   function handleProviderSelection() {
     console.log('handleProviderSelection called');
     
@@ -148,14 +154,86 @@ document.addEventListener('DOMContentLoaded', function() {
       // Show tabs section
       tabsSection.classList.remove('hidden');
       
-      // Load provider settings (which will include preview tab)
-      loadProviderSettings(selectedProviders);
+      // Save current provider settings before changing
+      saveCurrentProviderSettings();
+      
+      // Check if this is a new provider being added
+      const wasEmpty = document.querySelectorAll('#provider-tabs button').length <= 1; // Only preview tab
+      const isNewProvider = wasEmpty && selectedProviders.length === 1;
+      
+      if (isNewProvider) {
+        console.log('New provider added, will switch to its tab');
+        // Don't clear cache for new provider
+        loadProviderSettingsWithActiveTab(selectedProviders, 1); // Switch to provider tab (index 1)
+      } else {
+        // Clear cache when provider selection changes (removing providers)
+        clearProviderSettingsCache();
+        loadProviderSettings(selectedProviders);
+      }
     } else {
       console.log('Showing only preview');
       // Show tabs section with only preview tab
       tabsSection.classList.remove('hidden');
       showOnlyPreviewTab();
     }
+  }
+  
+  // Load provider settings with specific active tab
+  function loadProviderSettingsWithActiveTab(selectedProviders, activeTabIndex) {
+    console.log('loadProviderSettingsWithActiveTab called with:', selectedProviders.length, 'providers, active tab:', activeTabIndex);
+    
+    const tabsContainer = document.getElementById('provider-tabs');
+    
+    console.log('Tabs container:', tabsContainer);
+    
+    // Clear containers
+    tabsContainer.innerHTML = '';
+    
+    // Get provider IDs
+    const providerIDs = Array.from(selectedProviders).map(cb => cb.value).join(',');
+    console.log('Provider IDs:', providerIDs);
+    
+    // Load tabs with specific active tab
+    const tabsUrl = `/api/providers/tabs?providers=${providerIDs}&active=${activeTabIndex}`;
+    console.log('Loading tabs from:', tabsUrl);
+    
+    fetch(tabsUrl)
+      .then(response => {
+        console.log('Tabs response status:', response.status);
+        return response.text();
+      })
+      .then(html => {
+        console.log('Tabs HTML received, length:', html.length);
+        
+        // Add preview tab at the beginning (icon only)
+        const previewTabButton = `
+            <button class="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-gray-500 hover:text-gray-700" data-index="preview" onclick="switchToPreviewTab()" title="Preview">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+              </svg>
+            </button>
+        `;
+        
+        tabsContainer.innerHTML = previewTabButton + html;
+        
+        // Switch to the specified active tab
+        if (activeTabIndex === 0) {
+          showPreviewTab();
+        } else {
+          // Find the provider tab and switch to it
+          const providerTab = document.querySelector(`#provider-tabs button[data-index="${activeTabIndex}"]`);
+          if (providerTab) {
+            const providerType = providerTab.dataset.type;
+            const providerName = providerTab.dataset.name;
+            switchProviderTab(activeTabIndex, providerType, providerName);
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Error loading tabs:', error);
+        tabsContainer.innerHTML = '<p class="text-red-600 text-sm">Błąd ładowania zakładek</p>';
+      });
   }
   
   // Load provider settings
@@ -202,11 +280,101 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(error => {
         console.error('Error loading tabs:', error);
-        tabsContainer.innerHTML = '<p class="text-red-600 text-sm">Błąd ładowania zakładek</p>';
+        tabsContainer.innerHTML = '<p class="text-red-700 text-sm">Błąd ładowania zakładek</p>';
       });
   }
   
   // Load single provider settings
+  // Save current provider settings to cache
+  function saveCurrentProviderSettings() {
+    console.log('saveCurrentProviderSettings called');
+    const tabContent = document.getElementById('tab-content');
+    if (!tabContent) {
+      console.log('No tab content found');
+      return;
+    }
+    
+    // Find the currently active tab
+    const activeTab = document.querySelector('#provider-tabs button[class*="bg-blue-100"]');
+    console.log('Active tab found:', activeTab);
+    if (!activeTab) {
+      console.log('No active tab found');
+      return;
+    }
+    
+    const providerType = activeTab.dataset.type;
+    const providerName = activeTab.dataset.name;
+    console.log('Provider type:', providerType, 'Provider name:', providerName);
+    
+    if (!providerType || !providerName) {
+      console.log('Missing provider type or name');
+      return;
+    }
+    
+    const cacheKey = `${providerType}_${providerName}`;
+    const settings = {};
+    
+    // Save all input values in the current tab content
+    const inputs = tabContent.querySelectorAll('input, select, textarea');
+    console.log('Found inputs:', inputs.length);
+    inputs.forEach((input, index) => {
+      if (input.name) {
+        if (input.type === 'checkbox') {
+          settings[input.name] = input.checked;
+          console.log(`Input ${index}: ${input.name} (checkbox) = ${input.checked}`);
+        } else {
+          settings[input.name] = input.value;
+          console.log(`Input ${index}: ${input.name} = "${input.value}"`);
+        }
+      }
+    });
+    
+    providerSettingsCache[cacheKey] = settings;
+    console.log('Saved settings for', cacheKey, ':', settings);
+    console.log('Current cache:', providerSettingsCache);
+  }
+  
+  // Restore provider settings from cache
+  function restoreProviderSettings(providerType, providerName) {
+    console.log('restoreProviderSettings called for:', providerType, providerName);
+    const cacheKey = `${providerType}_${providerName}`;
+    const settings = providerSettingsCache[cacheKey];
+    
+    console.log('Cache key:', cacheKey);
+    console.log('Settings found:', settings);
+    
+    if (!settings) {
+      console.log('No settings found in cache');
+      return;
+    }
+    
+    console.log('Restoring settings for', cacheKey, ':', settings);
+    
+    // Wait a bit for the DOM to be updated
+    setTimeout(() => {
+      const tabContent = document.getElementById('tab-content');
+      if (!tabContent) {
+        console.log('No tab content found during restore');
+        return;
+      }
+      
+      // Restore all input values
+      const inputs = tabContent.querySelectorAll('input, select, textarea');
+      console.log('Found inputs during restore:', inputs.length);
+      inputs.forEach((input, index) => {
+        if (input.name && settings.hasOwnProperty(input.name)) {
+          if (input.type === 'checkbox') {
+            input.checked = settings[input.name];
+            console.log(`Restored input ${index}: ${input.name} (checkbox) = ${settings[input.name]}`);
+          } else {
+            input.value = settings[input.name];
+            console.log(`Restored input ${index}: ${input.name} = "${settings[input.name]}"`);
+          }
+        }
+      });
+    }, 100);
+  }
+  
   function loadSingleProviderSettings(providerType, providerName, container) {
     console.log('loadSingleProviderSettings called for:', providerType, providerName);
     console.log('Container:', container);
@@ -227,6 +395,9 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Settings HTML received, length:', html.length);
         console.log('Settings HTML preview:', html.substring(0, 200));
         tabContent.innerHTML = html;
+        
+        // Restore cached settings after loading
+        restoreProviderSettings(providerType, providerName);
       })
       .catch(error => {
         console.error('Error loading settings:', error);
@@ -337,49 +508,23 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
+  // Store provider settings values
+  let providerSettingsCache = {};
+  
   // Global function for switching provider tabs
   window.switchProviderTab = function(index, providerType, providerName) {
     console.log('switchProviderTab called:', index, providerType, providerName);
     
+    // Save current provider settings before switching
+    console.log('About to save current settings...');
+    saveCurrentProviderSettings();
+    
     // Load provider settings
+    console.log('About to load new settings...');
     loadSingleProviderSettings(providerType, providerName);
     
-    // Update tab styles
+    // Update tab styles without reloading all tabs
     updateTabStyles(index.toString());
-    
-    // Update provider tabs (optional - could be simplified)
-    const selectedProviders = document.querySelectorAll('.provider-checkbox:checked');
-    const providerIDs = Array.from(selectedProviders).map(cb => cb.value).join(',');
-    
-    console.log('Updating tabs for providers:', providerIDs);
-    
-    fetch(`/api/providers/tabs?providers=${providerIDs}&active=${index}`)
-      .then(response => {
-        console.log('Tabs update response status:', response.status);
-        return response.text();
-      })
-      .then(html => {
-        console.log('Tabs update HTML received, length:', html.length);
-        
-        // Add preview tab at the beginning (icon only)
-        const previewTabButton = `
-          <button class="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-gray-500 hover:text-gray-700" data-index="preview" onclick="switchToPreviewTab()" title="Preview">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-            </svg>
-          </button>
-        `;
-        
-        const tabsContainer = document.getElementById('provider-tabs');
-        tabsContainer.innerHTML = previewTabButton + html;
-        
-        // Update tab styles
-        updateTabStyles(index.toString());
-      })
-      .catch(error => {
-        console.error('Error updating tabs:', error);
-      });
   };
   
   // Submit form
