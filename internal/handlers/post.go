@@ -1,14 +1,10 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"math/rand"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -17,6 +13,8 @@ import (
 	data_database "github.com/tkowalski/socgo/internal/data/database"
 	provider_pkg "github.com/tkowalski/socgo/internal/data/provider"
 	"github.com/tkowalski/socgo/internal/handlers/internal"
+	process_post "github.com/tkowalski/socgo/internal/process/post"
+	process_post_data "github.com/tkowalski/socgo/internal/process/post/data"
 	"github.com/tkowalski/socgo/internal/service/database"
 	"github.com/tkowalski/socgo/internal/service/post"
 	"github.com/tkowalski/socgo/web/templates/component"
@@ -109,592 +107,45 @@ func (h *PostHandler) HandleFilePreview(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *PostHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
+	// Create post context
+	ctx := &process_post_data.PostContext{
+		Request:     r,
+		UserID:      internal.GetUserID(r),
+		DB:          h.dbManager,
+		Content:     "",
+		ScheduleAt:  "",
+		Media:       []provider_pkg.Media{},
+		Settings:    make(map[string]string),
+		ProviderIDs: []uint{},
+		PayloadJSON: []byte{},
+		Errors:      []error{},
 	}
 
-	var req PostRequest
-	var media []provider_pkg.Media
-	var settings map[string]string
+	postProcess := process_post.NewPostProcess(h.providerService)
 
-	// Check content type to determine how to parse the request
-	contentType := r.Header.Get("Content-Type")
+	// Execute the process
+	if err := postProcess.Execute(ctx); err != nil {
+		log.Printf("Post process failed: %v", err)
 
-	if strings.Contains(contentType, "multipart/form-data") {
-		// Parse multipart form data
-		if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB max
-			log.Printf("Error parsing multipart form: %v", err)
-			if strings.Contains(contentType, "multipart/form-data") {
-				// Return HTML error for HTMX
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusBadRequest)
-				errorHTML := `<div class="text-red-600 text-center py-8">
-					<h3 class="text-lg font-semibold mb-2">Błąd formularza</h3>
-					<p>Nie udało się przetworzyć danych formularza.</p>
-				</div>`
-				w.Write([]byte(errorHTML))
-			} else {
-				http.Error(w, "Failed to parse form data", http.StatusBadRequest)
-			}
-			return
-		}
-
-		// Extract form fields
-		providersStr := r.FormValue("providers")
-		if providersStr == "" {
-			if strings.Contains(contentType, "multipart/form-data") {
-				// Return HTML error for HTMX
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusBadRequest)
-				errorHTML := `<div class="text-red-600 text-center py-8">
-					<h3 class="text-lg font-semibold mb-2">Brak wybranych platform</h3>
-					<p>Wybierz co najmniej jedną platformę do publikacji.</p>
-				</div>`
-				w.Write([]byte(errorHTML))
-			} else {
-				http.Error(w, "providers field is required", http.StatusBadRequest)
-			}
-			return
-		}
-
-		// Parse providers (comma-separated list)
-		providerIDs := strings.Split(providersStr, ",")
-		if len(providerIDs) == 0 {
-			if strings.Contains(contentType, "multipart/form-data") {
-				// Return HTML error for HTMX
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusBadRequest)
-				errorHTML := `<div class="text-red-600 text-center py-8">
-					<h3 class="text-lg font-semibold mb-2">Brak wybranych platform</h3>
-					<p>Wybierz co najmniej jedną platformę do publikacji.</p>
-				</div>`
-				w.Write([]byte(errorHTML))
-			} else {
-				http.Error(w, "at least one provider must be selected", http.StatusBadRequest)
-			}
-			return
-		}
-
-		// For now, use the first provider ID
-		providerID, err := strconv.ParseUint(strings.TrimSpace(providerIDs[0]), 10, 32)
-		if err != nil {
-			if strings.Contains(contentType, "multipart/form-data") {
-				// Return HTML error for HTMX
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusBadRequest)
-				errorHTML := `<div class="text-red-600 text-center py-8">
-					<h3 class="text-lg font-semibold mb-2">Nieprawidłowy ID platformy</h3>
-					<p>Wybrana platforma ma nieprawidłowy identyfikator.</p>
-				</div>`
-				w.Write([]byte(errorHTML))
-			} else {
-				http.Error(w, "invalid provider ID", http.StatusBadRequest)
-			}
-			return
-		}
-		req.ProviderID = uint(providerID)
-
-		req.Content = r.FormValue("content")
-		if strings.TrimSpace(req.Content) == "" {
-			if strings.Contains(contentType, "multipart/form-data") {
-				// Return HTML error for HTMX
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusBadRequest)
-				errorHTML := `<div class="text-red-600 text-center py-8">
-					<h3 class="text-lg font-semibold mb-2">Brak treści</h3>
-					<p>Treść posta jest wymagana.</p>
-				</div>`
-				w.Write([]byte(errorHTML))
-			} else {
-				http.Error(w, "content is required", http.StatusBadRequest)
-			}
-			return
-		}
-
-		// Handle schedule_at
-		scheduleAt := r.FormValue("schedule_at_native")
-		if scheduleAt == "" {
-			req.ScheduleAt = "now"
-		} else {
-			req.ScheduleAt = scheduleAt
-		}
-
-		// Handle file uploads
-		files := r.MultipartForm.File["media"]
-		for _, fileHeader := range files {
-			file, err := fileHeader.Open()
-			if err != nil {
-				log.Printf("Error opening uploaded file: %v", err)
-				continue
-			}
-			defer file.Close()
-
-			// Create uploads directory if it doesn't exist
-			uploadDir := "uploads"
-			if err := os.MkdirAll(uploadDir, 0755); err != nil {
-				log.Printf("Error creating uploads directory: %v", err)
-				continue
-			}
-
-			// Generate unique filename
-			ext := filepath.Ext(fileHeader.Filename)
-			filename := fmt.Sprintf("%d_%d%s", time.Now().UnixNano(), rand.Intn(1000), ext) // Simple random number
-			filePath := filepath.Join(uploadDir, filename)
-
-			// Create the file
-			dst, err := os.Create(filePath)
-			if err != nil {
-				log.Printf("Error creating file: %v", err)
-				continue
-			}
-			defer dst.Close()
-
-			// Copy file content
-			if _, err := io.Copy(dst, file); err != nil {
-				log.Printf("Error copying file: %v", err)
-				continue
-			}
-
-			// Add to media list
-			fileType := "image" // Default to image
-			mimeType := fileHeader.Header.Get("Content-Type")
-			if strings.Contains(mimeType, "video/") {
-				fileType = "video"
-			}
-
-			media = append(media, provider_pkg.Media{
-				FileName: fileHeader.Filename,
-				FilePath: filePath,
-				FileType: fileType,
-				FileSize: fileHeader.Size,
-				MimeType: mimeType,
-			})
-		}
-
-		// Extract provider settings from form
-		settings = make(map[string]string)
-		for key, values := range r.Form {
-			if len(values) > 0 && (strings.Contains(key, "_location_") ||
-				strings.Contains(key, "_visibility_") ||
-				strings.Contains(key, "_comments_") ||
-				strings.Contains(key, "_duets_")) {
-				settings[key] = values[0]
-			}
-		}
-
-	} else {
-		// Parse JSON data
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			if strings.Contains(contentType, "multipart/form-data") {
-				// Return HTML error for HTMX
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusBadRequest)
-				errorHTML := `<div class="text-red-600 text-center py-8">
-					<h3 class="text-lg font-semibold mb-2">Nieprawidłowe dane JSON</h3>
-					<p>Nie udało się przetworzyć danych JSON.</p>
-				</div>`
-				w.Write([]byte(errorHTML))
-			} else {
-				http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-			}
-			return
-		}
-	}
-
-	// Basic validation
-	if req.ProviderID == 0 {
-		if strings.Contains(contentType, "multipart/form-data") {
-			// Return HTML error for HTMX
-			w.Header().Set("Content-Type", "text/html")
-			w.WriteHeader(http.StatusBadRequest)
-			errorHTML := `<div class="text-red-600 text-center py-8">
-				<h3 class="text-lg font-semibold mb-2">Brak wybranej platformy</h3>
-				<p>ID platformy jest wymagane.</p>
-			</div>`
-			w.Write([]byte(errorHTML))
-		} else {
-			http.Error(w, "provider_id is required", http.StatusBadRequest)
-		}
-		return
-	}
-	if strings.TrimSpace(req.Content) == "" {
-		if strings.Contains(contentType, "multipart/form-data") {
-			// Return HTML error for HTMX
-			w.Header().Set("Content-Type", "text/html")
-			w.WriteHeader(http.StatusBadRequest)
-			errorHTML := `<div class="text-red-600 text-center py-8">
-				<h3 class="text-lg font-semibold mb-2">Brak treści</h3>
-				<p>Treść posta jest wymagana.</p>
-			</div>`
-			w.Write([]byte(errorHTML))
-		} else {
-			http.Error(w, "content is required", http.StatusBadRequest)
-		}
-		return
-	}
-	if req.ScheduleAt == "" {
-		req.ScheduleAt = "now"
-	}
-
-	// Get user ID (currently defaults to "default_user")
-	userID := internal.GetUserID(r)
-
-	// Get database instance for user
-	db, err := h.dbManager.GetDB(userID)
-	if err != nil {
-		log.Printf("Error getting database: %v", err)
-		if strings.Contains(contentType, "multipart/form-data") {
-			// Return HTML error for HTMX
-			w.Header().Set("Content-Type", "text/html")
-			w.WriteHeader(http.StatusInternalServerError)
-			errorHTML := `<div class="text-red-600 text-center py-8">
-				<h3 class="text-lg font-semibold mb-2">Błąd bazy danych</h3>
-				<p>Nie udało się połączyć z bazą danych.</p>
-			</div>`
-			w.Write([]byte(errorHTML))
-		} else {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		// Return HTML error for HTMX
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusBadRequest)
+		errorHTML := fmt.Sprintf(`<div class="text-red-600 text-center py-8">
+			<h3 class="text-lg font-semibold mb-2">Błąd przetwarzania</h3>
+			<p>%s</p>
+		</div>`, err.Error())
+		if _, writeErr := w.Write([]byte(errorHTML)); writeErr != nil {
+			log.Printf("Error writing error response: %v", writeErr)
 		}
 		return
 	}
 
-	// Validate provider exists and is configured
-	var provider data_database.Provider
-	if err := db.First(&provider, req.ProviderID).Error; err != nil {
-		if strings.Contains(contentType, "multipart/form-data") {
-			// Return HTML error for HTMX
-			w.Header().Set("Content-Type", "text/html")
-			w.WriteHeader(http.StatusNotFound)
-			errorHTML := `<div class="text-red-600 text-center py-8">
-				<h3 class="text-lg font-semibold mb-2">Platforma nie znaleziona</h3>
-				<p>Wybrana platforma nie została znaleziona w bazie danych.</p>
-			</div>`
-			w.Write([]byte(errorHTML))
-		} else {
-			http.Error(w, "Provider not found", http.StatusNotFound)
-		}
+	// Return success response
+	w.Header().Set("Content-Type", "text/html")
+	if err := component.PostSuccess().Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering post success: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
-	}
-
-	// Check if provider is configured
-	isConfigured, err := h.providerService.IsProviderConfigured(userID, provider.Name)
-	if err != nil {
-		log.Printf("Error checking provider configuration: %v", err)
-		if strings.Contains(contentType, "multipart/form-data") {
-			// Return HTML error for HTMX
-			w.Header().Set("Content-Type", "text/html")
-			w.WriteHeader(http.StatusInternalServerError)
-			errorHTML := `<div class="text-red-600 text-center py-8">
-				<h3 class="text-lg font-semibold mb-2">Błąd serwera</h3>
-				<p>Wystąpił błąd podczas sprawdzania konfiguracji providera.</p>
-			</div>`
-			w.Write([]byte(errorHTML))
-		} else {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-		}
-		return
-	}
-	if !isConfigured {
-		if strings.Contains(contentType, "multipart/form-data") {
-			// Return HTML error for HTMX
-			w.Header().Set("Content-Type", "text/html")
-			w.WriteHeader(http.StatusBadRequest)
-			errorHTML := `<div class="text-red-600 text-center py-8">
-				<h3 class="text-lg font-semibold mb-2">Provider nie skonfigurowany</h3>
-				<p>Wybrany provider nie jest skonfigurowany. Sprawdź ustawienia.</p>
-			</div>`
-			w.Write([]byte(errorHTML))
-		} else {
-			http.Error(w, "Provider not configured", http.StatusBadRequest)
-		}
-		return
-	}
-
-	ctx := context.Background()
-
-	// Handle immediate or scheduled posting
-	if req.ScheduleAt == "now" {
-		// Immediate posting
-		log.Printf("Publishing content to provider: %s, content: %s, media count: %d", provider.Name, req.Content, len(media))
-		postID, err := h.providerService.PublishContent(ctx, userID, provider.Name, req.Content, media, settings)
-		if err != nil {
-			log.Printf("Error publishing content: %v", err)
-
-			// Create user-friendly error message
-			errorMessage := err.Error()
-			userFriendlyMessage := errorMessage
-
-			// Special handling for Instagram errors
-			if provider.Type == "instagram" {
-				if strings.Contains(errorMessage, "Instagram personal accounts cannot publish content") {
-					userFriendlyMessage = "Instagram: Twoje konto Instagram musi być kontem biznesowym lub twórcy, aby publikować treści. Przejdź do ustawień Instagram i przełącz na konto biznesowe, a następnie połącz je z Facebook Page."
-				} else if strings.Contains(errorMessage, "Instagram account must be a Business or Creator account") {
-					userFriendlyMessage = "Instagram: Twoje konto Instagram musi być kontem biznesowym lub twórcy. Sprawdź ustawienia Instagram."
-				} else if strings.Contains(errorMessage, "Object with ID does not exist") {
-					userFriendlyMessage = "Instagram: Problem z konfiguracją konta. Upewnij się, że używasz Instagram Business Account połączonego z Facebook Page."
-				} else if strings.Contains(errorMessage, "Invalid Instagram Business Account ID") {
-					userFriendlyMessage = "Instagram: Nieprawidłowy ID konta. Upewnij się, że używasz Instagram Business Account ID."
-				}
-			}
-
-			if strings.Contains(contentType, "multipart/form-data") {
-				// Return HTML error for HTMX
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusInternalServerError)
-				errorHTML := fmt.Sprintf(`<div class="text-red-600 text-center py-8">
-					<h3 class="text-lg font-semibold mb-2">Błąd publikacji</h3>
-					<p class="mb-4">%s</p>
-					<div class="text-sm text-gray-600">
-						<p><strong>Szczegóły techniczne:</strong> %s</p>
-					</div>
-				</div>`, userFriendlyMessage, errorMessage)
-				w.Write([]byte(errorHTML))
-			} else {
-				http.Error(w, "Failed to publish content", http.StatusInternalServerError)
-			}
-			return
-		}
-
-		log.Printf("Content published successfully, post ID: %s", postID)
-
-		// Generate external URL based on provider type
-		externalURL := ""
-		if postID != "" {
-			switch provider.Type {
-			case "facebook":
-				externalURL = fmt.Sprintf("https://www.facebook.com/%s", postID)
-			case "instagram":
-				externalURL = fmt.Sprintf("https://www.instagram.com/p/%s/", postID)
-			case "tiktok":
-				externalURL = fmt.Sprintf("https://www.tiktok.com/@%s/video/%s", provider.Name, postID)
-			}
-			log.Printf("Generated external URL: %s for provider type: %s", externalURL, provider.Type)
-		}
-
-		// Save post to database
-		post := data_database.Post{
-			Content:     req.Content,
-			UserID:      userID,
-			ProviderID:  req.ProviderID,
-			ExternalID:  postID,
-			ExternalURL: externalURL,
-			Status:      "published",
-			PublishedAt: &[]time.Time{time.Now()}[0],
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		}
-
-		if err := db.Create(&post).Error; err != nil {
-			log.Printf("Error saving post: %v", err)
-			if strings.Contains(contentType, "multipart/form-data") {
-				// Return HTML error for HTMX
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusInternalServerError)
-				errorHTML := `<div class="text-red-600 text-center py-8">
-					<h3 class="text-lg font-semibold mb-2">Błąd zapisu</h3>
-					<p>Nie udało się zapisać posta do bazy danych.</p>
-				</div>`
-				w.Write([]byte(errorHTML))
-			} else {
-				http.Error(w, "Failed to save post", http.StatusInternalServerError)
-			}
-			return
-		}
-
-		log.Printf("Post saved to database with ID: %d", post.ID)
-
-		// Save media files to database
-		if len(media) > 0 {
-			log.Printf("Saving %d media files to database", len(media))
-			for _, m := range media {
-				mediaRecord := data_database.Media{
-					PostID:    post.ID,
-					FileName:  m.FileName,
-					FilePath:  m.FilePath,
-					FileType:  m.FileType,
-					FileSize:  m.FileSize,
-					MimeType:  m.MimeType,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				}
-
-				if err := db.Create(&mediaRecord).Error; err != nil {
-					log.Printf("Error saving media file %s: %v", m.FileName, err)
-					// Continue with other media files
-				} else {
-					log.Printf("Media file saved: %s", m.FileName)
-				}
-			}
-		}
-
-		// Return success response
-		response := PostResponse{
-			ID:         post.ID,
-			Status:     "published",
-			ProviderID: req.ProviderID,
-			Content:    req.Content,
-			CreatedAt:  post.CreatedAt,
-			Message:    "Post published successfully. Post ID: " + postID,
-		}
-
-		// Check if this is an HTMX request (multipart form data)
-		if strings.Contains(contentType, "multipart/form-data") {
-			// Return HTML response for HTMX
-			w.Header().Set("Content-Type", "text/html")
-			if err := component.PostSuccess().Render(r.Context(), w); err != nil {
-				log.Printf("Error rendering post success: %v", err)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
-				return
-			}
-		} else {
-			// Return JSON response for API
-			h.writeJSONResponse(w, response, http.StatusCreated)
-		}
-	} else {
-		// Scheduled posting
-		scheduledAt, err := time.Parse(time.RFC3339, req.ScheduleAt)
-		if err != nil {
-			if strings.Contains(contentType, "multipart/form-data") {
-				// Return HTML error for HTMX
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusBadRequest)
-				errorHTML := `<div class="text-red-600 text-center py-8">
-					<h3 class="text-lg font-semibold mb-2">Nieprawidłowy format daty</h3>
-					<p>Użyj formatu ISO8601 lub 'now' dla daty publikacji.</p>
-				</div>`
-				w.Write([]byte(errorHTML))
-			} else {
-				http.Error(w, "Invalid schedule_at format. Use ISO8601 format or 'now'", http.StatusBadRequest)
-			}
-			return
-		}
-
-		if scheduledAt.Before(time.Now()) {
-			if strings.Contains(contentType, "multipart/form-data") {
-				// Return HTML error for HTMX
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusBadRequest)
-				errorHTML := `<div class="text-red-600 text-center py-8">
-					<h3 class="text-lg font-semibold mb-2">Data w przeszłości</h3>
-					<p>Data publikacji musi być w przyszłości.</p>
-				</div>`
-				w.Write([]byte(errorHTML))
-			} else {
-				http.Error(w, "scheduled_at must be in the future", http.StatusBadRequest)
-			}
-			return
-		}
-
-		// Create payload data with content and media information
-		payloadData := struct {
-			Content string `json:"content"`
-			Media   []struct {
-				FileName string `json:"file_name"`
-				FileType string `json:"file_type"`
-				FilePath string `json:"file_path"`
-				FileSize int64  `json:"file_size"`
-				MimeType string `json:"mime_type"`
-			} `json:"media"`
-		}{
-			Content: req.Content,
-			Media: make([]struct {
-				FileName string `json:"file_name"`
-				FileType string `json:"file_type"`
-				FilePath string `json:"file_path"`
-				FileSize int64  `json:"file_size"`
-				MimeType string `json:"mime_type"`
-			}, 0),
-		}
-
-		// Add media information to payload
-		for _, m := range media {
-			payloadData.Media = append(payloadData.Media, struct {
-				FileName string `json:"file_name"`
-				FileType string `json:"file_type"`
-				FilePath string `json:"file_path"`
-				FileSize int64  `json:"file_size"`
-				MimeType string `json:"mime_type"`
-			}{
-				FileName: m.FileName,
-				FileType: m.FileType,
-				FilePath: m.FilePath,
-				FileSize: m.FileSize,
-				MimeType: m.MimeType,
-			})
-		}
-
-		// Convert payload to JSON
-		payloadJSON, err := json.Marshal(payloadData)
-		if err != nil {
-			log.Printf("Error marshaling payload data: %v", err)
-			if strings.Contains(contentType, "multipart/form-data") {
-				// Return HTML error for HTMX
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusInternalServerError)
-				errorHTML := `<div class="text-red-600 text-center py-8">
-					<h3 class="text-lg font-semibold mb-2">Błąd przetwarzania</h3>
-					<p>Nie udało się przetworzyć danych posta.</p>
-				</div>`
-				w.Write([]byte(errorHTML))
-			} else {
-				http.Error(w, "Failed to process post data", http.StatusInternalServerError)
-			}
-			return
-		}
-
-		// Create scheduled job
-		job := data_database.ScheduledJob{
-			JobType:     "publish_post",
-			PayloadData: string(payloadJSON),
-			UserID:      userID,
-			ProviderID:  req.ProviderID,
-			ScheduledAt: scheduledAt,
-			Status:      "pending",
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		}
-
-		if err := db.Create(&job).Error; err != nil {
-			log.Printf("Error creating scheduled job: %v", err)
-			if strings.Contains(contentType, "multipart/form-data") {
-				// Return HTML error for HTMX
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusInternalServerError)
-				errorHTML := `<div class="text-red-600 text-center py-8">
-					<h3 class="text-lg font-semibold mb-2">Błąd planowania</h3>
-					<p>Nie udało się zaplanować posta.</p>
-				</div>`
-				w.Write([]byte(errorHTML))
-			} else {
-				http.Error(w, "Failed to schedule post", http.StatusInternalServerError)
-			}
-			return
-		}
-
-		// Return success response
-		response := PostResponse{
-			ID:         job.ID,
-			Status:     "pending",
-			ProviderID: req.ProviderID,
-			Content:    req.Content,
-			CreatedAt:  job.CreatedAt,
-			Message:    "Post scheduled successfully for " + scheduledAt.Format(time.RFC3339),
-		}
-
-		// Check if this is an HTMX request (multipart form data)
-		if strings.Contains(contentType, "multipart/form-data") {
-			// Return HTML response for HTMX
-			w.Header().Set("Content-Type", "text/html")
-			if err := component.PostSuccess().Render(r.Context(), w); err != nil {
-				log.Printf("Error rendering post success: %v", err)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
-				return
-			}
-		} else {
-			// Return JSON response for API
-			h.writeJSONResponse(w, response, http.StatusCreated)
-		}
 	}
 }
 

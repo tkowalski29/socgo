@@ -43,9 +43,9 @@ func main() {
 	container.Register("notification_service", notificationService)
 
 	// Create and start scheduler
-	jobScheduler := scheduler.New(dbManager, providerService, notificationService)
-	container.Register("scheduler", jobScheduler)
-	jobScheduler.Start()
+	schedulerService := scheduler.New(dbManager, providerService, notificationService)
+	container.Register("scheduler", schedulerService)
+	schedulerService.Start()
 
 	srv := server.New(container)
 	container.Register("server", srv)
@@ -65,6 +65,6 @@ func main() {
 	// Wait for shutdown signal
 	<-stopChan
 	log.Println("Shutting down...")
-	jobScheduler.Stop()
+	schedulerService.Stop()
 	log.Println("Goodbye!")
 }

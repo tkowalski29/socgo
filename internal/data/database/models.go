@@ -15,6 +15,7 @@ type Post struct {
 	Provider     Provider       `json:"provider" gorm:"foreignKey:ProviderID"`
 	ExternalID   string         `json:"external_id" gorm:"index"`        // ID posta na platformie zewnętrznej (np. Facebook post ID)
 	ExternalURL  string         `json:"external_url"`                    // URL do posta na platformie zewnętrznej
+	ScheduledAt  *time.Time     `json:"scheduled_at" gorm:"index"`       // Data planowanej wysyłki
 	PublishedAt  *time.Time     `json:"published_at"`                    // Data publikacji na platformie zewnętrznej
 	Status       string         `json:"status" gorm:"default:'pending'"` // Status posta: pending, published, failed
 	ErrorMessage string         `json:"error_message"`                   // Komunikat błędu jeśli publikacja się nie powiodła
