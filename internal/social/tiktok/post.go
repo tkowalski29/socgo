@@ -14,6 +14,7 @@ import (
 
 	"log"
 
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/data/provider"
 )
 
@@ -32,9 +33,9 @@ func NewTikTokPost(config *provider.ProviderConfig, httpClient provider.HTTPClie
 }
 
 // Publish publishes content to TikTok using proper TikTok Content Posting API v2
-func (p *TikTokPost) Publish(ctx context.Context, content string, media []provider.Media) (postID string, err error) {
+func (p *TikTokPost) Publish(ctx context.Context, dbProvider data_database.Provider, content string, media []provider.Media) (postID string, err error) {
 	log.Printf("TikTok Publish called with content: %s", content)
-	
+
 	// TikTok requires video content for publishing
 	if len(media) == 0 {
 		return "", fmt.Errorf("TikTok posts require at least one video file")
@@ -131,7 +132,7 @@ func (p *TikTokPost) initializeVideoUpload(ctx context.Context, media provider.M
 
 	// Prepare form data
 	data := url.Values{}
-	data.Set("source_info", fmt.Sprintf(`{"source": "FILE_UPLOAD", "video_size": %d, "chunk_size": %d, "total_chunk_count": 1}`, 
+	data.Set("source_info", fmt.Sprintf(`{"source": "FILE_UPLOAD", "video_size": %d, "chunk_size": %d, "total_chunk_count": 1}`,
 		fileInfo.Size(), fileInfo.Size()))
 
 	// Make the request using injected HTTP client
@@ -162,8 +163,8 @@ func (p *TikTokPost) initializeVideoUpload(ctx context.Context, media provider.M
 	// Parse response
 	var response struct {
 		Data struct {
-			VideoID     string            `json:"video_id"`
-			UploadURL   string            `json:"upload_url"`
+			VideoID       string            `json:"video_id"`
+			UploadURL     string            `json:"upload_url"`
 			UploadHeaders map[string]string `json:"upload_headers"`
 		} `json:"data"`
 		Error struct {
@@ -233,11 +234,11 @@ func (p *TikTokPost) createVideoPost(ctx context.Context, content string, media 
 			"video_id": media.FileName, // This should be the video_id from upload response
 		},
 		"post_info": map[string]interface{}{
-			"title":             content,
-			"privacy_level":     "PUBLIC_TO_EVERYONE",
-			"disable_duet":      false,
-			"disable_stitch":    false,
-			"disable_comment":   false,
+			"title":                    content,
+			"privacy_level":            "PUBLIC_TO_EVERYONE",
+			"disable_duet":             false,
+			"disable_stitch":           false,
+			"disable_comment":          false,
 			"video_cover_timestamp_ms": 1000,
 		},
 		"source_info": map[string]interface{}{
@@ -344,12 +345,12 @@ func (p *TikTokPost) GetStatus(ctx context.Context, postID string) (status strin
 	// Parse response
 	var response struct {
 		Data struct {
-			VideoID           string `json:"video_id"`
-			VideoStatus       string `json:"video_status"`
-			PostStatus        string `json:"post_status"`
-			FailReason        string `json:"fail_reason,omitempty"`
-			PublishTime       int64  `json:"publish_time,omitempty"`
-			ReviewStatus      string `json:"review_status,omitempty"`
+			VideoID      string `json:"video_id"`
+			VideoStatus  string `json:"video_status"`
+			PostStatus   string `json:"post_status"`
+			FailReason   string `json:"fail_reason,omitempty"`
+			PublishTime  int64  `json:"publish_time,omitempty"`
+			ReviewStatus string `json:"review_status,omitempty"`
 		} `json:"data"`
 		Error struct {
 			Code    string `json:"code"`

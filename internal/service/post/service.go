@@ -70,7 +70,7 @@ func (s *ProviderService) PublishContent(ctx context.Context, userID string, pro
 	}
 
 	// Publish content using provider
-	postID, err = provider.Publish(ctx, content, media)
+	postID, err = provider.Publish(ctx, dbProvider, content, media)
 	if err != nil {
 		return "", fmt.Errorf("failed to publish content: %w", err)
 	}

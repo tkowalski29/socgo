@@ -444,6 +444,45 @@ document.addEventListener('DOMContentLoaded', function() {
   // Add provider settings to form
   function addProviderSettingsToForm(form) {
     console.log('addProviderSettingsToForm called');
+    
+    // Add selected providers
+    const selectedProviders = document.querySelectorAll('.provider-checkbox:checked');
+    const providerIDs = Array.from(selectedProviders).map(cb => cb.value);
+    console.log('Selected provider IDs:', providerIDs);
+    
+    // Remove existing providers input
+    const existingProvidersInput = form.querySelector('input[name="providers"]');
+    if (existingProvidersInput) {
+      existingProvidersInput.remove();
+    }
+    
+    // Create providers input
+    if (providerIDs.length > 0) {
+      const providersInput = document.createElement('input');
+      providersInput.type = 'hidden';
+      providersInput.name = 'providers';
+      providersInput.value = providerIDs.join(',');
+      form.appendChild(providersInput);
+    }
+    
+    // Add schedule_at_native field
+    const scheduleInput = document.getElementById('schedule_at_native');
+    if (scheduleInput && scheduleInput.value) {
+      // Remove existing schedule input
+      const existingScheduleInput = form.querySelector('input[name="schedule_at_native"]');
+      if (existingScheduleInput) {
+        existingScheduleInput.remove();
+      }
+      
+      // Create schedule input
+      const scheduleHiddenInput = document.createElement('input');
+      scheduleHiddenInput.type = 'hidden';
+      scheduleHiddenInput.name = 'schedule_at_native';
+      scheduleHiddenInput.value = scheduleInput.value;
+      form.appendChild(scheduleHiddenInput);
+    }
+    
+    // Add provider settings
     const settingsInputs = document.querySelectorAll('#tab-content input, #tab-content select, #tab-content textarea');
     console.log('Found settings inputs:', settingsInputs.length);
     

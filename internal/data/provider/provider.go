@@ -3,6 +3,8 @@ package provider
 import (
 	"context"
 	"net/http"
+
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 )
 
 // Media represents a media file to be uploaded
@@ -18,7 +20,7 @@ type Media struct {
 type Provider interface {
 	// Publish publishes content to the social media platform
 	// Returns postID on success
-	Publish(ctx context.Context, content string, media []Media) (postID string, err error)
+	Publish(ctx context.Context, dbProvider data_database.Provider, content string, media []Media) (postID string, err error)
 
 	// GetStatus retrieves the status of a published post
 	GetStatus(ctx context.Context, postID string) (status string, err error)

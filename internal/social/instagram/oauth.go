@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -37,7 +38,17 @@ func (i *OAuth) GetConnectURL(userID string, providerName string, providerConfig
 	params.Add("scope", strings.Join(metadata.Scopes, " "))
 	params.Add("state", fmt.Sprintf("%s:%s", userID, providerName))
 
-	return metadata.AuthURL + "?" + params.Encode(), nil
+	authURL := metadata.AuthURL + "?" + params.Encode()
+
+	// Log the OAuth URL details
+	log.Printf("🔗 Instagram OAuth URL being generated:")
+	log.Printf("   Client ID: %s", providerConfig.ClientID)
+	log.Printf("   Redirect URI: %s", i.GetRedirectURI(oauth.ProviderTypeInstagram))
+	log.Printf("   Scopes: %s", strings.Join(metadata.Scopes, " "))
+	log.Printf("   Auth URL: %s", metadata.AuthURL)
+	log.Printf("   Final URL: %s", authURL)
+
+	return authURL, nil
 }
 
 func (i *OAuth) ExchangeCodeForToken(code string, providerConfig *config.ProviderInstance) (*oauth.ProviderConfig, error) {
@@ -112,6 +123,85 @@ func (i *OAuth) GetUserInfo(accessToken string) (*oauth.UserInfo, error) {
 }
 
 func (i *OAuth) GetAvailableAccounts(accessToken string) ([]oauth.AccountInfo, error) {
+	log.Printf("🔍 Getting available Instagram accounts...")
+
+	// First, let's check what permissions we have
+	log.Printf("🔐 Checking permissions for access token...")
+	permissions, err := i.checkPermissions(accessToken)
+	if err != nil {
+		log.Printf("❌ Error checking permissions: %v", err)
+	} else {
+		log.Printf("✅ Permissions: %s", permissions)
+	}
+
+	// Check user info to see what account we're using
+	log.Printf("👤 Checking user info...")
+	userInfo, err := i.GetUserInfo(accessToken)
+	if err != nil {
+		log.Printf("❌ Error getting user info: %v", err)
+	} else {
+		log.Printf("✅ User: %s (ID: %s)", userInfo.Name, userInfo.ID)
+	}
+
+	// Check if this is a business profile
+	log.Printf("🏢 Checking profile type...")
+	profileType, err := i.checkProfileType(accessToken)
+	if err != nil {
+		log.Printf("❌ Error checking profile type: %v", err)
+	} else {
+		log.Printf("✅ Profile type: %s", profileType)
+		if profileType == "BUSINESS" {
+			log.Printf("⚠️  WARNING: You're using a Business Profile!")
+			log.Printf("💡 Business profiles have limited API access")
+			log.Printf("💡 This might cause issues with Facebook Pages access")
+			log.Printf("💡 Consider switching back to personal profile for testing")
+		}
+	}
+
+	// Check if we can access Facebook Pages with this token
+	log.Printf("📄 Checking Facebook Pages access...")
+	pages, err := i.getFacebookPages(accessToken)
+	if err != nil {
+		log.Printf("❌ Error getting Facebook pages: %v", err)
+	} else {
+		log.Printf("📊 Found %d Facebook pages", len(pages))
+		for i, page := range pages {
+			log.Printf("  %d. ID: %s, Name: %s, Category: %s", i+1, page.ID, page.Name, page.Category)
+		}
+	}
+
+	// Try a different approach - check if we can access pages directly
+	log.Printf("🔍 Trying alternative Facebook Pages check...")
+	altPages, err := i.getFacebookPagesAlternative(accessToken)
+	if err != nil {
+		log.Printf("❌ Error with alternative Facebook pages check: %v", err)
+	} else {
+		log.Printf("📊 Alternative method found %d Facebook pages", len(altPages))
+		for i, page := range altPages {
+			log.Printf("  %d. ID: %s, Name: %s", i+1, page.ID, page.Name)
+		}
+	}
+
+	// Check if this is the same account that has Facebook Pages
+	log.Printf("🔍 Checking if this account has Facebook Pages...")
+	if len(pages) == 0 && len(altPages) == 0 {
+		log.Printf("⚠️  WARNING: This Facebook account (%s) has no Facebook Pages!")
+		log.Printf("💡 But you mentioned you have Facebook Page 'Test1'")
+		log.Printf("💡 This suggests you might be using a different Facebook account")
+		log.Printf("")
+		log.Printf("🔧 POSSIBLE SOLUTIONS:")
+		log.Printf("   1. Check if you're logged into the correct Facebook account")
+		log.Printf("   2. The Facebook Page 'Test1' might belong to a different account")
+		log.Printf("   3. Try logging out and logging into the account that owns 'Test1'")
+		log.Printf("")
+		log.Printf("📋 TO VERIFY:")
+		log.Printf("   1. Go to https://www.facebook.com/pages")
+		log.Printf("   2. Check if you see 'Test1' page")
+		log.Printf("   3. If not, you're using a different account")
+		log.Printf("   4. If yes, there might be a permission issue")
+	}
+
+	// Now try the Instagram-specific endpoint
 	req, err := http.NewRequest("GET", "https://graph.facebook.com/v18.0/me/accounts", nil)
 	if err != nil {
 		return nil, err
@@ -119,8 +209,10 @@ func (i *OAuth) GetAvailableAccounts(accessToken string) ([]oauth.AccountInfo, e
 
 	q := req.URL.Query()
 	q.Add("access_token", accessToken)
-	q.Add("fields", "id,name,category,instagram_business_account")
+	q.Add("fields", "id,name,category,instagram_business_account,access_token")
 	req.URL.RawQuery = q.Encode()
+
+	log.Printf("📡 Making request to: %s", req.URL.String())
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
@@ -131,38 +223,124 @@ func (i *OAuth) GetAvailableAccounts(accessToken string) ([]oauth.AccountInfo, e
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
+		log.Printf("❌ Instagram accounts request failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
 		return nil, fmt.Errorf("Instagram accounts request failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	log.Printf("📄 Raw API response: %s", string(bodyBytes))
 
 	var response struct {
 		Data []struct {
 			ID                       string `json:"id"`
 			Name                     string `json:"name"`
 			Category                 string `json:"category"`
+			AccessToken              string `json:"access_token"`
 			InstagramBusinessAccount struct {
 				ID string `json:"id"`
 			} `json:"instagram_business_account"`
 		} `json:"data"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.NewDecoder(strings.NewReader(string(bodyBytes))).Decode(&response); err != nil {
+		log.Printf("❌ Failed to decode Instagram accounts response: %v", err)
 		return nil, fmt.Errorf("failed to decode Instagram accounts response: %w", err)
 	}
 
+	log.Printf("📊 Found %d Facebook pages via Instagram endpoint", len(response.Data))
+
+	// If no Facebook Pages found, provide detailed instructions
+	if len(response.Data) == 0 {
+		log.Printf("❌ NO FACEBOOK PAGES FOUND via Instagram endpoint!")
+		log.Printf("💡 This could mean:")
+		log.Printf("   1. Missing 'pages_show_list' permission")
+		log.Printf("   2. Using wrong access token")
+		log.Printf("   3. Facebook Pages not accessible via this token")
+		log.Printf("   4. Token is for a different Facebook account")
+		log.Printf("   5. This Facebook account has no Facebook Pages")
+		log.Printf("   6. Instagram connection changed token permissions")
+		log.Printf("   7. Using Business Profile with limited API access")
+		log.Printf("")
+		log.Printf("🔧 TROUBLESHOOTING:")
+		log.Printf("   1. Check if you granted 'pages_show_list' permission")
+		log.Printf("   2. Try reconnecting your Instagram account")
+		log.Printf("   3. Make sure you're using the same Facebook account")
+		log.Printf("   4. Check if your Facebook Pages are public")
+		log.Printf("   5. Create a Facebook Page if you don't have one")
+		log.Printf("   6. Check if Instagram connection affected permissions")
+		log.Printf("   7. Switch from Business Profile to Personal Profile")
+		log.Printf("")
+		log.Printf("📋 REQUIRED PERMISSIONS:")
+		log.Printf("   - pages_show_list (to see your Facebook Pages)")
+		log.Printf("   - instagram_basic (to access Instagram)")
+		log.Printf("   - instagram_content_publish (to publish content)")
+		log.Printf("   - pages_manage_posts (to publish via Facebook Pages)")
+		log.Printf("")
+		log.Printf("🔗 MANUAL CHECK:")
+		log.Printf("   1. Go to https://www.facebook.com/pages")
+		log.Printf("   2. Check if you see your Facebook Pages")
+		log.Printf("   3. If not, you might be using a different Facebook account")
+		log.Printf("   4. If no pages exist, create one:")
+		log.Printf("      - Click 'Create Page'")
+		log.Printf("      - Choose 'Business or Brand'")
+		log.Printf("      - Enter page name (e.g., 'My Business')")
+		log.Printf("      - Choose category (e.g., 'Software')")
+		log.Printf("      - Complete page creation")
+		log.Printf("")
+		log.Printf("📱 AFTER CREATING FACEBOOK PAGE:")
+		log.Printf("   1. Go to your new Facebook Page")
+		log.Printf("   2. Settings > Instagram")
+		log.Printf("   3. Connect your Instagram Business Account")
+		log.Printf("   4. Try connecting Instagram again in this app")
+		log.Printf("")
+		log.Printf("🔍 POSSIBLE ISSUE:")
+		log.Printf("   If you connected Instagram to Facebook Page and now pages disappeared,")
+		log.Printf("   this might be a token permission issue. Try:")
+		log.Printf("   1. Disconnect Instagram from Facebook Page")
+		log.Printf("   2. Reconnect Instagram in this app")
+		log.Printf("   3. Then connect Instagram to Facebook Page again")
+		log.Printf("")
+		log.Printf("🏢 BUSINESS PROFILE ISSUE:")
+		log.Printf("   If you're using a Business Profile, try:")
+		log.Printf("   1. Switch back to Personal Profile")
+		log.Printf("   2. Reconnect Instagram in this app")
+		log.Printf("   3. Then connect Instagram to Facebook Page")
+	}
+
 	var accounts []oauth.AccountInfo
-	for _, page := range response.Data {
+	for i, page := range response.Data {
+		log.Printf("📄 Page %d: ID=%s, Name=%s, Category=%s", i+1, page.ID, page.Name, page.Category)
+		log.Printf("📄 Page %d: InstagramBusinessAccount.ID=%s", i+1, page.InstagramBusinessAccount.ID)
+
 		if page.InstagramBusinessAccount.ID != "" {
+			log.Printf("✅ Found Instagram Business Account: %s for page: %s", page.InstagramBusinessAccount.ID, page.Name)
 			accounts = append(accounts, oauth.AccountInfo{
-				ID:       page.InstagramBusinessAccount.ID,
-				Name:     page.Name,
-				Type:     "instagram",
-				Category: page.Category,
+				ID:              page.InstagramBusinessAccount.ID,
+				Name:            page.Name,
+				Type:            "instagram",
+				Category:        page.Category,
+				PageAccessToken: page.AccessToken,
 			})
+		} else {
+			log.Printf("❌ No Instagram Business Account found for page: %s", page.Name)
+			log.Printf("💡 This means Instagram is not connected to this Facebook Page")
+			log.Printf("💡 To fix this:")
+			log.Printf("   1. Go to https://www.facebook.com/pages")
+			log.Printf("   2. Select page: %s", page.Name)
+			log.Printf("   3. Go to Settings > Instagram")
+			log.Printf("   4. Connect your Instagram Business Account")
 		}
 	}
 
 	// If no Instagram Business Accounts found, try to get the user's basic Instagram account
 	if len(accounts) == 0 {
+		log.Printf("⚠️  No Instagram Business Accounts found, trying basic Instagram account")
+		log.Printf("⚠️  WARNING: Instagram personal accounts cannot publish content via API")
+		log.Printf("⚠️  To publish content, you need to:")
+		log.Printf("   1. Convert your Instagram account to Business or Creator Account")
+		log.Printf("   2. Connect it to a Facebook Page")
+		log.Printf("   3. Ensure the Facebook Page has an Instagram Business Account")
+
 		userInfo, err := i.GetUserInfo(accessToken)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get user info for basic Instagram account: %w", err)
@@ -173,11 +351,165 @@ func (i *OAuth) GetAvailableAccounts(accessToken string) ([]oauth.AccountInfo, e
 			ID:       userInfo.ID,
 			Name:     userInfo.Name,
 			Type:     "instagram_basic",
-			Category: "Personal Account",
+			Category: "Personal Account (Cannot Publish)",
 		})
+		log.Printf("Added basic Instagram account: %s (%s) - NOTE: This account cannot publish content", userInfo.ID, userInfo.Name)
 	}
 
+	log.Printf("📊 Total Instagram accounts found: %d", len(accounts))
 	return accounts, nil
+}
+
+// checkPermissions checks what permissions the access token has
+func (i *OAuth) checkPermissions(accessToken string) (string, error) {
+	url := fmt.Sprintf("https://graph.facebook.com/v18.0/me/permissions?access_token=%s", accessToken)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("API error: %s", string(body))
+	}
+
+	var response struct {
+		Data []struct {
+			Permission string `json:"permission"`
+			Status     string `json:"status"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(body, &response); err != nil {
+		return "", err
+	}
+
+	permissions := ""
+	for _, perm := range response.Data {
+		if perm.Status == "granted" {
+			permissions += perm.Permission + ", "
+		}
+	}
+
+	return permissions, nil
+}
+
+// checkProfileType checks if the user is using a business profile
+func (i *OAuth) checkProfileType(accessToken string) (string, error) {
+	url := fmt.Sprintf("https://graph.facebook.com/v18.0/me?fields=id,name,account_type&access_token=%s", accessToken)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("API error: %s", string(body))
+	}
+
+	var response struct {
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		AccountType string `json:"account_type"`
+	}
+
+	if err := json.Unmarshal(body, &response); err != nil {
+		return "", err
+	}
+
+	return response.AccountType, nil
+}
+
+// getFacebookPages tries to get Facebook Pages using a different approach
+func (i *OAuth) getFacebookPages(accessToken string) ([]struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Category string `json:"category"`
+}, error) {
+	url := fmt.Sprintf("https://graph.facebook.com/v18.0/me/accounts?fields=id,name,category&access_token=%s", accessToken)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API error: %s", string(body))
+	}
+
+	var response struct {
+		Data []struct {
+			ID       string `json:"id"`
+			Name     string `json:"name"`
+			Category string `json:"category"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+
+	return response.Data, nil
+}
+
+// getFacebookPagesAlternative tries a different approach to get Facebook Pages
+func (i *OAuth) getFacebookPagesAlternative(accessToken string) ([]struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}, error) {
+	// Try using the user's ID directly
+	userInfo, err := i.GetUserInfo(accessToken)
+	if err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("https://graph.facebook.com/v18.0/%s/accounts?fields=id,name&access_token=%s", userInfo.ID, accessToken)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API error: %s", string(body))
+	}
+
+	var response struct {
+		Data []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+
+	return response.Data, nil
 }
 
 // SaveAllAccounts saves all available Instagram accounts as separate providers
@@ -193,8 +525,17 @@ func (i *OAuth) SaveAllAccounts(userID string, providerName string, token *oauth
 
 	// Save each account as a separate provider
 	for _, account := range accounts {
+		// Use PageAccessToken for Instagram Business Accounts, fallback to main token for basic accounts
+		accessToken := token.AccessToken
+		if account.PageAccessToken != "" {
+			accessToken = account.PageAccessToken
+			log.Printf("Using PageAccessToken for Instagram Business Account: %s", account.ID)
+		} else {
+			log.Printf("Using main access token for basic Instagram account: %s", account.ID)
+		}
+
 		accountToken := &oauth.ProviderConfig{
-			AccessToken: token.AccessToken,
+			AccessToken: accessToken,
 			TokenType:   token.TokenType,
 			ExpiresAt:   token.ExpiresAt,
 			UserInfo: &oauth.UserInfo{

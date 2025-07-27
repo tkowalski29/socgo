@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -136,12 +137,42 @@ func (s *Scheduler) processPublishPostJob(ctx context.Context, userID string, db
 		return s.markJobFailed(db, job, "Provider name not found")
 	}
 
+	// Parse PayloadData to extract content and media information
+	var payloadData struct {
+		Content string `json:"content"`
+		Media   []struct {
+			FileName string `json:"file_name"`
+			FileType string `json:"file_type"`
+			FilePath string `json:"file_path"`
+			FileSize int64  `json:"file_size"`
+			MimeType string `json:"mime_type"`
+		} `json:"media"`
+	}
+
+	// Try to parse as JSON first, if it fails, treat as plain text
+	if err := json.Unmarshal([]byte(job.PayloadData), &payloadData); err != nil {
+		// If it's not JSON, treat as plain text content
+		payloadData.Content = job.PayloadData
+	}
+
+	// Convert media information to provider.Media format
+	var media []provider.Media
+	for _, m := range payloadData.Media {
+		media = append(media, provider.Media{
+			FileName: m.FileName,
+			FileType: m.FileType,
+			FilePath: m.FilePath,
+			FileSize: m.FileSize,
+			MimeType: m.MimeType,
+		})
+	}
+
 	// Publish content using provider service
-	postID, err := s.providerService.PublishContent(ctx, userID, job.Provider.Name, job.PayloadData, []provider.Media{}, nil)
+	postID, err := s.providerService.PublishContent(ctx, userID, job.Provider.Name, payloadData.Content, media, nil)
 	if err != nil {
 		// Save failed post with error information
 		post := data_database.Post{
-			Content:      job.PayloadData,
+			Content:      payloadData.Content,
 			UserID:       userID,
 			ProviderID:   job.ProviderID,
 			Status:       data_database.PostStatusFailed,
@@ -173,10 +204,27 @@ func (s *Scheduler) processPublishPostJob(ctx context.Context, userID string, db
 	externalID := postID
 	externalURL := ""
 
-	// For Facebook, postID is the actual Facebook post ID
-	// We can construct the URL: https://www.facebook.com/{postID}
+	log.Printf("Job %d: Provider Type: %s, Provider Name: %s, PostID: %s", job.ID, job.Provider.Type, job.Provider.Name, postID)
+
+	// For Facebook, postID jest postem w formacie {pageId_postId}
 	if job.Provider.Type == "facebook" && postID != "" {
 		externalURL = fmt.Sprintf("https://www.facebook.com/%s", postID)
+		log.Printf("Job %d: Generated Facebook URL: %s", job.ID, externalURL)
+	}
+	// Instagram: postID to media ID, można wygenerować link jeśli znamy userID
+	if job.Provider.Type == "instagram" && postID != "" {
+		// Instagram nie udostępnia bezpośredniego linku po API, ale można spróbować:
+		externalURL = fmt.Sprintf("https://www.instagram.com/p/%s/", postID)
+		log.Printf("Job %d: Generated Instagram URL: %s", job.ID, externalURL)
+	}
+	// TikTok: postID to video ID
+	if job.Provider.Type == "tiktok" && postID != "" {
+		externalURL = fmt.Sprintf("https://www.tiktok.com/@%s/video/%s", job.Provider.Name, postID)
+		log.Printf("Job %d: Generated TikTok URL: %s", job.ID, externalURL)
+	}
+
+	if externalURL == "" {
+		log.Printf("Job %d: No external URL generated for provider type: %s", job.ID, job.Provider.Type)
 	}
 
 	// Set published time and status
@@ -185,7 +233,7 @@ func (s *Scheduler) processPublishPostJob(ctx context.Context, userID string, db
 
 	// Create post record
 	post := data_database.Post{
-		Content:      job.PayloadData,
+		Content:      payloadData.Content,
 		UserID:       userID,
 		ProviderID:   job.ProviderID,
 		ExternalID:   externalID,
@@ -200,6 +248,30 @@ func (s *Scheduler) processPublishPostJob(ctx context.Context, userID string, db
 	if err := db.Create(&post).Error; err != nil {
 		log.Printf("Warning: Failed to save post record for job %d: %v", job.ID, err)
 		// Continue - post was published successfully
+	}
+
+	// Save media files to database if they exist
+	if len(media) > 0 {
+		log.Printf("Saving %d media files to database for job %d", len(media), job.ID)
+		for _, m := range media {
+			mediaRecord := data_database.Media{
+				PostID:    post.ID,
+				FileName:  m.FileName,
+				FilePath:  m.FilePath,
+				FileType:  m.FileType,
+				FileSize:  m.FileSize,
+				MimeType:  m.MimeType,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
+
+			if err := db.Create(&mediaRecord).Error; err != nil {
+				log.Printf("Error saving media file %s for job %d: %v", m.FileName, job.ID, err)
+				// Continue with other media files
+			} else {
+				log.Printf("Media file saved for job %d: %s", job.ID, m.FileName)
+			}
+		}
 	}
 
 	// Mark job as completed

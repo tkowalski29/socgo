@@ -354,6 +354,17 @@ func (h *CalendarHandler) HandleWeekView(w http.ResponseWriter, r *http.Request)
 
 	// Add scheduled posts to appropriate days and hours
 	for _, job := range scheduledJobs {
+		// Parse PayloadData to extract content
+		var payloadData struct {
+			Content string `json:"content"`
+		}
+		
+		// Try to parse as JSON first, if it fails, treat as plain text
+		if err := json.Unmarshal([]byte(job.PayloadData), &payloadData); err != nil {
+			// If it's not JSON, treat as plain text content
+			payloadData.Content = job.PayloadData
+		}
+		
 		// Calculate day index more accurately
 		jobDate := job.ScheduledAt.Truncate(24 * time.Hour)
 		startDateTruncated := startDate.Truncate(24 * time.Hour)
@@ -363,7 +374,7 @@ func (h *CalendarHandler) HandleWeekView(w http.ResponseWriter, r *http.Request)
 			hour := job.ScheduledAt.Hour()
 			days[dayIndex].Hours[hour] = append(days[dayIndex].Hours[hour], WeekPost{
 				ID:          job.ID,
-				Content:     job.PayloadData,
+				Content:     payloadData.Content,
 				ProviderID:  job.ProviderID,
 				Provider:    job.Provider,
 				ScheduledAt: &job.ScheduledAt,

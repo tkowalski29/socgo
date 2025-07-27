@@ -15,6 +15,7 @@ import (
 
 	"log"
 
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/data/provider"
 )
 
@@ -32,19 +33,188 @@ func NewInstagramPost(config *provider.ProviderConfig, httpClient provider.HTTPC
 	}
 }
 
+// validateInstagramConfig validates Instagram configuration before publishing
+func (p *InstagramPost) validateInstagramConfig() error {
+	if p.Config == nil {
+		return fmt.Errorf("Instagram configuration is nil")
+	}
+
+	if p.Config.UserID == "" {
+		return fmt.Errorf("Instagram UserID is required")
+	}
+
+	if p.Config.AccessToken == "" {
+		return fmt.Errorf("Instagram AccessToken is required")
+	}
+
+	// Validate that UserID looks like a valid Instagram Business Account ID
+	// Instagram Business Account IDs are typically numeric and 15-16 digits
+	if !isValidInstagramBusinessAccountID(p.Config.UserID) {
+		return fmt.Errorf("Invalid Instagram Business Account ID: %s. Please ensure you're using an Instagram Business Account connected to a Facebook Page", p.Config.UserID)
+	}
+
+	return nil
+}
+
+// isValidInstagramBusinessAccountID checks if the UserID looks like a valid Instagram Business Account ID
+func isValidInstagramBusinessAccountID(userID string) bool {
+	// Instagram Business Account IDs are typically numeric and 15-16 digits
+	if len(userID) < 10 || len(userID) > 20 {
+		return false
+	}
+
+	// Check if it's numeric
+	for _, char := range userID {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+
+	return true
+}
+
+// checkInstagramPermissions checks if the Instagram account has required permissions
+func (p *InstagramPost) checkInstagramPermissions(ctx context.Context) error {
+	// First, try to get account info with business fields
+	url := fmt.Sprintf("https://graph.facebook.com/v18.0/%s?fields=id,username,account_type,media_count&access_token=%s",
+		p.Config.UserID, p.Config.AccessToken)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create permissions check request: %w", err)
+	}
+
+	resp, err := p.HttpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to check Instagram permissions: %w", err)
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read permissions response: %w", err)
+	}
+
+	log.Printf("Instagram permissions check response: %s", string(bodyBytes))
+
+	// If we get an error about account_type field, try with basic fields
+	if resp.StatusCode == http.StatusBadRequest && strings.Contains(string(bodyBytes), "account_type") {
+		log.Printf("Account type field not available, trying basic account check")
+		return p.checkBasicInstagramAccount(ctx)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Instagram permissions check failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var response struct {
+		ID          string `json:"id"`
+		Username    string `json:"username"`
+		AccountType string `json:"account_type"`
+		MediaCount  int    `json:"media_count"`
+		Error       struct {
+			Message   string `json:"message"`
+			Type      string `json:"type"`
+			Code      int    `json:"code"`
+			ErrorCode int    `json:"error_code"`
+		} `json:"error"`
+	}
+
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
+		return fmt.Errorf("failed to decode permissions response: %w", err)
+	}
+
+	if response.Error.Message != "" {
+		return fmt.Errorf("Instagram permissions check error: %s (type: %s, code: %d)",
+			response.Error.Message, response.Error.Type, response.Error.Code)
+	}
+
+	log.Printf("Instagram account info - ID: %s, Username: %s, AccountType: %s",
+		response.ID, response.Username, response.AccountType)
+
+	// Check if it's a business account
+	if response.AccountType != "BUSINESS" && response.AccountType != "CREATOR" {
+		return fmt.Errorf("Instagram account must be a Business or Creator account to publish content. Current account type: %s", response.AccountType)
+	}
+
+	return nil
+}
+
+// checkBasicInstagramAccount checks basic Instagram account (personal account)
+func (p *InstagramPost) checkBasicInstagramAccount(ctx context.Context) error {
+	// For basic Instagram accounts, we can only read data, not publish
+	url := fmt.Sprintf("https://graph.facebook.com/v18.0/%s?fields=id,username&access_token=%s",
+		p.Config.UserID, p.Config.AccessToken)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create basic account check request: %w", err)
+	}
+
+	resp, err := p.HttpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to check basic Instagram account: %w", err)
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read basic account response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Basic Instagram account check failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var response struct {
+		ID       string `json:"id"`
+		Username string `json:"username"`
+		Error    struct {
+			Message   string `json:"message"`
+			Type      string `json:"type"`
+			Code      int    `json:"code"`
+			ErrorCode int    `json:"error_code"`
+		} `json:"error"`
+	}
+
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
+		return fmt.Errorf("failed to decode basic account response: %w", err)
+	}
+
+	if response.Error.Message != "" {
+		return fmt.Errorf("Basic Instagram account check error: %s (type: %s, code: %d)",
+			response.Error.Message, response.Error.Type, response.Error.Code)
+	}
+
+	log.Printf("Basic Instagram account info - ID: %s, Username: %s", response.ID, response.Username)
+
+	// For basic Instagram accounts, we cannot publish content
+	return fmt.Errorf("Instagram personal accounts cannot publish content via API. Please convert your account to Instagram Business Account or Creator Account and connect it to a Facebook Page")
+}
+
 // Publish publishes content to Instagram using proper Instagram Graph API
-func (p *InstagramPost) Publish(ctx context.Context, content string, media []provider.Media) (postID string, err error) {
+func (p *InstagramPost) Publish(ctx context.Context, dbProvider data_database.Provider, content string, media []provider.Media) (postID string, err error) {
 	log.Printf("Instagram Publish called with content: %s", content)
-	
+
+	// Validate configuration first
+	if err := p.validateInstagramConfig(); err != nil {
+		return "", fmt.Errorf("Instagram configuration validation failed: %w", err)
+	}
+
+	// Check permissions
+	if err := p.checkInstagramPermissions(ctx); err != nil {
+		return "", fmt.Errorf("Instagram permissions check failed: %w", err)
+	}
+
 	// Instagram requires 2-step publishing process:
 	// 1. Create media container(s)
 	// 2. Publish the container(s)
-	
+
 	if len(media) > 0 {
 		// Publish with media using Instagram Graph API
 		return p.publishWithMedia(ctx, content, media)
 	}
-	
+
 	// For text-only posts, Instagram doesn't support them directly
 	// Instagram requires at least one media item for posts
 	return "", fmt.Errorf("Instagram posts require at least one media item (image or video)")
@@ -115,6 +285,10 @@ func (p *InstagramPost) createMediaContainer(ctx context.Context, caption string
 	// Instagram Graph API endpoint for creating media containers
 	apiURL := fmt.Sprintf("https://graph.facebook.com/v18.0/%s/media", p.Config.UserID)
 
+	log.Printf("Creating media container for Instagram account: %s", p.Config.UserID)
+	log.Printf("API URL: %s", apiURL)
+	log.Printf("Media type: %s, File: %s", mediaType, media.FileName)
+
 	// Determine media type if not specified
 	if mediaType == "" {
 		mediaType = "IMAGE"
@@ -172,6 +346,8 @@ func (p *InstagramPost) createMediaContainer(ctx context.Context, caption string
 
 	writer.Close()
 
+	log.Printf("Making request to Instagram Graph API...")
+
 	// Make the request
 	resp, err := http.Post(apiURL, writer.FormDataContentType(), &b)
 	if err != nil {
@@ -184,6 +360,9 @@ func (p *InstagramPost) createMediaContainer(ctx context.Context, caption string
 	if err != nil {
 		return "", fmt.Errorf("failed to read response body: %w", err)
 	}
+
+	log.Printf("Instagram API response status: %d", resp.StatusCode)
+	log.Printf("Instagram API response body: %s", string(bodyBytes))
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("create container failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
@@ -209,6 +388,7 @@ func (p *InstagramPost) createMediaContainer(ctx context.Context, caption string
 			response.Error.Message, response.Error.Type, response.Error.Code)
 	}
 
+	log.Printf("Successfully created media container with ID: %s", response.ID)
 	return response.ID, nil
 }
 
@@ -401,15 +581,15 @@ func (p *InstagramPost) RefreshToken(ctx context.Context) error {
 	}
 
 	// Instagram uses Facebook's token refresh mechanism
-	// Since Instagram Business accounts use Facebook page tokens, 
+	// Since Instagram Business accounts use Facebook page tokens,
 	// we use Facebook's token exchange endpoint
 	apiURL := "https://graph.facebook.com/v18.0/oauth/access_token"
 
 	// Prepare form data
 	data := url.Values{}
 	data.Set("grant_type", "fb_exchange_token")
-	data.Set("client_id", "your_app_id") // This should come from config
-	data.Set("client_secret", "your_app_secret") // This should come from config  
+	data.Set("client_id", "your_app_id")         // This should come from config
+	data.Set("client_secret", "your_app_secret") // This should come from config
 	data.Set("fb_exchange_token", p.Config.AccessToken)
 
 	// Make the request using injected HTTP client

@@ -14,6 +14,7 @@ import (
 
 	"log"
 
+	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/data/provider"
 )
 
@@ -32,9 +33,9 @@ func NewFacebookPost(config *provider.ProviderConfig, httpClient provider.HTTPCl
 }
 
 // Funkcja pomocnicza do doklejania lokalizacji
-func appendLocation(content string, settings map[string]string) string {
+func appendLocation(content string, dbProvider data_database.Provider, settings map[string]string) string {
 	if settings != nil {
-		if location, ok := settings["facebook_location"]; ok && location != "" {
+		if location, ok := settings[fmt.Sprintf("facebook_location_%s", dbProvider.Name)]; ok && location != "" {
 			log.Printf("Adding location to content: %s", location)
 			return content + "\n📍 " + location
 		}
@@ -44,11 +45,11 @@ func appendLocation(content string, settings map[string]string) string {
 }
 
 // Publish publishes content to Facebook
-func (p *FacebookPost) Publish(ctx context.Context, content string, media []provider.Media) (postID string, err error) {
+func (p *FacebookPost) Publish(ctx context.Context, dbProvider data_database.Provider, content string, media []provider.Media) (postID string, err error) {
 	log.Printf("Publish called with original content: %s", content)
 	log.Printf("Settings: %+v", p.Config.Settings)
 
-	content = appendLocation(content, p.Config.Settings)
+	content = appendLocation(content, dbProvider, p.Config.Settings)
 	log.Printf("Content after adding location: %s", content)
 
 	// If we have media files, try to publish with media

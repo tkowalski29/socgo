@@ -55,7 +55,7 @@ var SupportedProviders = map[ProviderType]ProviderMetadata{
 		AuthURL:     "https://www.tiktok.com/v2/auth/authorize/",
 		TokenURL:    "https://open.tiktokapis.com/v2/oauth/token/",
 		UserInfoURL: "https://open.tiktokapis.com/v2/user/info/",
-		Scopes:      []string{"user.info.basic", "video.upload", "video.publish"},
+		Scopes:      []string{"user.info.basic", "user.info.profile", "video.upload", "video.publish"},
 		RedirectURI: "/oauth/callback/tiktok",
 	},
 	ProviderTypeInstagram: {
@@ -64,7 +64,7 @@ var SupportedProviders = map[ProviderType]ProviderMetadata{
 		AuthURL:     "https://www.facebook.com/v18.0/dialog/oauth",
 		TokenURL:    "https://graph.facebook.com/v18.0/oauth/access_token",
 		UserInfoURL: "https://graph.facebook.com/v18.0/me/accounts",
-		Scopes:      []string{"instagram_basic", "pages_show_list", "pages_read_engagement"},
+		Scopes:      []string{"instagram_basic", "instagram_content_publish", "pages_show_list", "pages_read_engagement", "pages_manage_posts", "business_management"},
 		RedirectURI: "/oauth/callback/instagram",
 	},
 	ProviderTypeFacebook: {
@@ -73,7 +73,7 @@ var SupportedProviders = map[ProviderType]ProviderMetadata{
 		AuthURL:     "https://www.facebook.com/v18.0/dialog/oauth",
 		TokenURL:    "https://graph.facebook.com/v18.0/oauth/access_token",
 		UserInfoURL: "https://graph.facebook.com/me",
-		Scopes:      []string{"public_profile", "email", "pages_show_list", "pages_read_engagement", "pages_manage_posts"},
+		Scopes:      []string{"public_profile", "email", "pages_show_list", "pages_read_engagement", "pages_manage_posts", "business_management"},
 		RedirectURI: "/oauth/callback/facebook",
 	},
 }
