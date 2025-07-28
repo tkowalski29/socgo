@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -37,6 +38,8 @@ func NewProviderService(dbManager *database.Manager, oauthService *oauth.Service
 
 // PublishContent publishes content to a specific provider
 func (s *ProviderService) PublishContent(ctx context.Context, userID string, providerName string, content string, media []provider.Media, settings map[string]string) (postID string, err error) {
+	log.Printf("PublishContent called for provider: %s, user: %s", providerName, userID)
+
 	// Get provider configuration from database
 	config, err := s.getProviderConfig(ctx, userID, providerName)
 	if err != nil {
@@ -59,6 +62,7 @@ func (s *ProviderService) PublishContent(ctx context.Context, userID string, pro
 	if result.Error != nil {
 		return "", fmt.Errorf("provider not found: %w", result.Error)
 	}
+	log.Printf("Found provider in database: ID=%d, Name=%s, Type=%s", dbProvider.ID, dbProvider.Name, dbProvider.Type)
 
 	// Convert provider type to ProviderType
 	providerType := ProviderType(dbProvider.Type)
@@ -70,6 +74,61 @@ func (s *ProviderService) PublishContent(ctx context.Context, userID string, pro
 	}
 
 	// Publish content using provider
+	postID, err = provider.Publish(ctx, dbProvider, content, media)
+	if err != nil {
+		return "", fmt.Errorf("failed to publish content: %w", err)
+	}
+
+	return postID, nil
+}
+
+// PublishContentByID publikuje treść do providera na podstawie ID
+func (s *ProviderService) PublishContentByID(ctx context.Context, userID string, providerID uint, content string, media []provider.Media, settings map[string]string) (postID string, err error) {
+	log.Printf("PublishContentByID called for providerID: %d, user: %s", providerID, userID)
+
+	db, err := s.dbManager.GetDB(userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get database: %w", err)
+	}
+
+	var dbProvider data_database.Provider
+	result := db.First(&dbProvider, providerID)
+	if result.Error != nil {
+		return "", fmt.Errorf("provider not found: %w", result.Error)
+	}
+	log.Printf("Found provider in database: ID=%d, Name=%s, Type=%s", dbProvider.ID, dbProvider.Name, dbProvider.Type)
+
+	// Parse OAuth configuration directly from dbProvider.Config
+	var oauthConfig data_oauth.ProviderConfig
+	if err := json.Unmarshal([]byte(dbProvider.Config), &oauthConfig); err != nil {
+		return "", fmt.Errorf("failed to unmarshal OAuth config: %w", err)
+	}
+
+	// Convert to provider config
+	config := &provider.ProviderConfig{
+		AccessToken:  oauthConfig.AccessToken,
+		RefreshToken: oauthConfig.RefreshToken,
+		TokenType:    oauthConfig.TokenType,
+		ExpiresAt:    oauthConfig.ExpiresAt.Unix(),
+		Scope:        oauthConfig.Scope,
+		UserID:       userID,
+	}
+
+	// Set user info if available
+	if oauthConfig.UserInfo != nil {
+		config.UserID = oauthConfig.UserInfo.ID
+	}
+
+	if settings != nil {
+		config.Settings = settings
+	}
+
+	providerType := ProviderType(dbProvider.Type)
+	provider, err := s.factory.CreateProvider(providerType, config)
+	if err != nil {
+		return "", fmt.Errorf("failed to create provider: %w", err)
+	}
+
 	postID, err = provider.Publish(ctx, dbProvider, content, media)
 	if err != nil {
 		return "", fmt.Errorf("failed to publish content: %w", err)

@@ -1,8 +1,10 @@
 package internal
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	data_database "github.com/tkowalski/socgo/internal/data/database"
@@ -26,27 +28,52 @@ func (t *SavePostTask) Execute(ctx *data.PostContext) error {
 		return fmt.Errorf("failed to get database: %w", err)
 	}
 
-	// Parse scheduled time
-	var scheduledTime *time.Time
-	if ctx.ScheduleAt == "now" {
-		now := time.Now()
-		scheduledTime = &now
-	} else {
-		parsedTime, err := time.Parse(time.RFC3339, ctx.ScheduleAt)
-		if err != nil {
-			return fmt.Errorf("invalid schedule_at format: %w", err)
-		}
-		scheduledTime = &parsedTime
+	// Parse scheduled time using flexible parser
+	scheduledTime, err := ParseScheduleTime(ctx.ScheduleAt)
+	if err != nil {
+		return fmt.Errorf("invalid schedule_at format: %w", err)
 	}
 
 	// Create posts for each provider
 	var createdPosts []data_database.Post
 	for _, providerID := range ctx.ProviderIDs {
+		// Get provider details to determine type
+		var provider data_database.Provider
+		if err := db.First(&provider, providerID).Error; err != nil {
+			log.Printf("Error getting provider %d: %v", providerID, err)
+			return fmt.Errorf("failed to get provider %d: %w", providerID, err)
+		}
+
+		// Filter settings for this specific provider
+		providerSettings := make(map[string]string)
+		for key, value := range ctx.Settings {
+			// Check if setting belongs to this provider (e.g., facebook_location_Test1)
+			if strings.HasPrefix(key, provider.Type+"_") && strings.HasSuffix(key, "_"+provider.Name) {
+				// Extract the setting name without prefix and suffix
+				settingName := strings.TrimPrefix(key, provider.Type+"_")
+				settingName = strings.TrimSuffix(settingName, "_"+provider.Name)
+				providerSettings[settingName] = value
+			}
+		}
+
+		// Convert settings to JSON
+		settingsJSON := ""
+		if len(providerSettings) > 0 {
+			settingsBytes, err := json.Marshal(providerSettings)
+			if err != nil {
+				log.Printf("Error marshaling settings for provider %d: %v", providerID, err)
+				return fmt.Errorf("failed to marshal settings: %w", err)
+			}
+			settingsJSON = string(settingsBytes)
+			log.Printf("Saving settings for provider %d (%s): %s", providerID, provider.Type, settingsJSON)
+		}
+
 		// Create post record
 		post := data_database.Post{
 			Content:     ctx.Content,
 			UserID:      ctx.UserID,
 			ProviderID:  providerID,
+			Settings:    settingsJSON,
 			ScheduledAt: scheduledTime,
 			Status:      data_database.PostStatusPending,
 			CreatedAt:   time.Now(),

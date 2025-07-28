@@ -20,7 +20,6 @@ templ ProviderLogo(props ProviderLogoProps) {
 			if props.Disabled {
 				<input 
 					type="checkbox" 
-					name="providers" 
 					value={ fmt.Sprint(props.ID) } 
 					data-provider-type={ props.Type } 
 					data-provider-name={ props.Name } 
@@ -30,7 +29,6 @@ templ ProviderLogo(props ProviderLogoProps) {
 			} else {
 				<input 
 					type="checkbox" 
-					name="providers" 
 					value={ fmt.Sprint(props.ID) } 
 					data-provider-type={ props.Type } 
 					data-provider-name={ props.Name } 

@@ -35,7 +35,7 @@ func NewFacebookPost(config *provider.ProviderConfig, httpClient provider.HTTPCl
 // Funkcja pomocnicza do doklejania lokalizacji
 func appendLocation(content string, dbProvider data_database.Provider, settings map[string]string) string {
 	if settings != nil {
-		if location, ok := settings[fmt.Sprintf("facebook_location_%s", dbProvider.Name)]; ok && location != "" {
+		if location, ok := settings["location"]; ok && location != "" {
 			log.Printf("Adding location to content: %s", location)
 			return content + "\n📍 " + location
 		}

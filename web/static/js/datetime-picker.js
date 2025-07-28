@@ -64,7 +64,8 @@ document.addEventListener('DOMContentLoaded', function() {
       
       if (date && hour && minute) {
         const displayValue = `${date} ${hour}:${minute}`;
-        const nativeValue = `${date}T${hour}:${minute}`;
+        // Create full RFC3339 format with seconds and timezone
+        const nativeValue = `${date}T${hour}:${minute}:00${new Date().toTimeString().slice(-6)}`;
         
         datetimeInput.value = displayValue;
         document.getElementById('schedule_at_native').value = nativeValue;
@@ -133,7 +134,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const minute = String(now.getMinutes()).padStart(2, '0');
     
     const displayDateTime = `${year}-${month}-${day} ${hour}:${minute}`;
-    const nativeDateTime = `${year}-${month}-${day}T${hour}:${minute}`;
+    // Create full RFC3339 format with seconds and timezone
+    const nativeDateTime = `${year}-${month}-${day}T${hour}:${minute}:00${now.toTimeString().slice(-6)}`;
     
     const footerScheduleInput = document.getElementById('schedule_at_footer');
     if (footerScheduleInput) footerScheduleInput.value = displayDateTime;
@@ -161,7 +163,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const hour = String(date.getHours()).padStart(2, '0');
     const minute = String(date.getMinutes()).padStart(2, '0');
     
-    return `${year}-${month}-${day}T${hour}:${minute}`;
+    // Create full RFC3339 format with seconds and timezone
+    return `${year}-${month}-${day}T${hour}:${minute}:00${date.toTimeString().slice(-6)}`;
   }
   
   // Initialize when DOM is ready

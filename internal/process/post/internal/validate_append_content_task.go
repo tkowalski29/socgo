@@ -3,7 +3,6 @@ package internal
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/tkowalski/socgo/internal/process/post/data"
 )
@@ -40,7 +39,7 @@ func (t *ValidateContentTask) Execute(ctx *data.PostContext) error {
 
 	// Validate schedule format if not "now"
 	if ctx.ScheduleAt != "now" {
-		if _, err := time.Parse(time.RFC3339, ctx.ScheduleAt); err != nil {
+		if _, err := ParseScheduleTime(ctx.ScheduleAt); err != nil {
 			return fmt.Errorf("invalid schedule_at format, use ISO8601 or 'now': %w", err)
 		}
 	}

@@ -13,6 +13,7 @@ type Post struct {
 	UserID       string         `json:"user_id" gorm:"not null;index"`
 	ProviderID   uint           `json:"provider_id" gorm:"index"`
 	Provider     Provider       `json:"provider" gorm:"foreignKey:ProviderID"`
+	Settings     string         `json:"settings" gorm:"type:text"`       // Ustawienia providera jako JSON
 	ExternalID   string         `json:"external_id" gorm:"index"`        // ID posta na platformie zewnętrznej (np. Facebook post ID)
 	ExternalURL  string         `json:"external_url"`                    // URL do posta na platformie zewnętrznej
 	ScheduledAt  *time.Time     `json:"scheduled_at" gorm:"index"`       // Data planowanej wysyłki

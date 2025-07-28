@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/tkowalski/socgo/internal/data/provider"
 	"github.com/tkowalski/socgo/internal/process/post/data"
 	"github.com/tkowalski/socgo/internal/service/post"
+	"github.com/tkowalski/socgo/internal/social"
 )
 
 // PublishPostsTask publishes all pending posts that are ready
@@ -43,7 +45,18 @@ func (t *PublishPostsTask) Execute(ctx *data.PostContext) error {
 	failedCount := 0
 
 	for _, post := range ctx.PendingPosts {
-		log.Printf("Publishing post ID %d for provider %s", post.ID, post.Provider.Name)
+		log.Printf("Publishing post ID %d for provider %s (ID: %d, Type: %s)", post.ID, post.Provider.Name, post.Provider.ID, post.Provider.Type)
+
+		// Parse settings from database
+		var settings map[string]string
+		if post.Settings != "" {
+			if err := json.Unmarshal([]byte(post.Settings), &settings); err != nil {
+				log.Printf("Warning: Failed to parse settings for post %d: %v", post.ID, err)
+				settings = nil
+			} else {
+				log.Printf("Loaded settings for post %d: %+v", post.ID, settings)
+			}
+		}
 
 		// Convert media to provider.Media format
 		var media []provider.Media
@@ -58,7 +71,7 @@ func (t *PublishPostsTask) Execute(ctx *data.PostContext) error {
 		}
 
 		// Publish content using provider service
-		postID, err := t.providerService.PublishContent(ctx_background, ctx.UserID, post.Provider.Name, post.Content, media, nil)
+		postID, err := t.providerService.PublishContentByID(ctx_background, ctx.UserID, post.Provider.ID, post.Content, media, settings)
 		if err != nil {
 			log.Printf("Failed to publish post %d: %v", post.ID, err)
 
@@ -81,14 +94,8 @@ func (t *PublishPostsTask) Execute(ctx *data.PostContext) error {
 
 		log.Printf("Post %d published successfully. Provider: %s, PostID: %s", post.ID, post.Provider.Name, postID)
 
-		// Generate external URL based on provider type
-		if post.Provider.Type == "facebook" && postID != "" {
-			externalURL = fmt.Sprintf("https://www.facebook.com/%s", postID)
-		} else if post.Provider.Type == "instagram" && postID != "" {
-			externalURL = fmt.Sprintf("https://www.instagram.com/p/%s/", postID)
-		} else if post.Provider.Type == "tiktok" && postID != "" {
-			externalURL = fmt.Sprintf("https://www.tiktok.com/@%s/video/%s", post.Provider.Name, postID)
-		}
+		// Generate external URL using helper function
+		externalURL = social.BuildExternalURL(post.Provider.Type, post.Provider.Name, postID)
 
 		// Update post with success information
 		now := time.Now()

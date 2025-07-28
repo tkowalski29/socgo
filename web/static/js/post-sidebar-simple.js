@@ -21,6 +21,12 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log('Initializing preview...');
       initializePreview();
       
+      // Set default datetime
+      console.log('Setting default datetime...');
+      if (typeof setDefaultDateTime === 'function') {
+        setDefaultDateTime();
+      }
+      
       // Focus on textarea
       setTimeout(() => {
         const textarea = document.getElementById('content');
@@ -769,6 +775,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (filePreview) filePreview.innerHTML = '';
     
     if (resultDiv) resultDiv.innerHTML = '';
+    
+    // Set default datetime after reset
+    console.log('Setting default datetime after reset...');
+    if (typeof setDefaultDateTime === 'function') {
+      setDefaultDateTime();
+    }
     
     // Update preview
     updatePreview();

@@ -76,13 +76,23 @@ func (t *ParseDataTask) Execute(ctx *data.PostContext) error {
 		}
 	}
 
-	log.Printf("Final provider IDs: %v", providerIDList)
+	// Remove duplicates from provider ID list
+	providerIDMap := make(map[uint]bool)
+	var uniqueProviderIDs []uint
+	for _, id := range providerIDList {
+		if !providerIDMap[id] {
+			providerIDMap[id] = true
+			uniqueProviderIDs = append(uniqueProviderIDs, id)
+		}
+	}
 
-	if len(providerIDList) == 0 {
+	log.Printf("Final provider IDs (after deduplication): %v", uniqueProviderIDs)
+
+	if len(uniqueProviderIDs) == 0 {
 		return fmt.Errorf("at least one provider must be selected")
 	}
 
-	ctx.ProviderIDs = providerIDList
+	ctx.ProviderIDs = uniqueProviderIDs
 
 	// Extract content based on operation type
 	var content string
