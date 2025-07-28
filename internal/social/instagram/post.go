@@ -75,6 +75,8 @@ func isValidInstagramBusinessAccountID(userID string) bool {
 
 // checkInstagramPermissions checks if the Instagram account has required permissions
 func (p *InstagramPost) checkInstagramPermissions(ctx context.Context) error {
+	log.Printf("🔍 Checking Instagram permissions for UserID: %s", p.Config.UserID)
+
 	// First, try to get account info with business fields
 	url := fmt.Sprintf("https://graph.facebook.com/v18.0/%s?fields=id,username,account_type,media_count&access_token=%s",
 		p.Config.UserID, p.Config.AccessToken)
@@ -129,14 +131,46 @@ func (p *InstagramPost) checkInstagramPermissions(ctx context.Context) error {
 			response.Error.Message, response.Error.Type, response.Error.Code)
 	}
 
-	log.Printf("Instagram account info - ID: %s, Username: %s, AccountType: %s",
-		response.ID, response.Username, response.AccountType)
+	log.Printf("Instagram account info - ID: %s, Username: %s, AccountType: %s, MediaCount: %d",
+		response.ID, response.Username, response.AccountType, response.MediaCount)
 
 	// Check if it's a business account
 	if response.AccountType != "BUSINESS" && response.AccountType != "CREATOR" {
-		return fmt.Errorf("Instagram account must be a Business or Creator account to publish content. Current account type: %s", response.AccountType)
+		return fmt.Errorf(`Instagram account must be a Business or Creator account to publish content. 
+
+Current account type: %s
+Account: %s (@%s)
+
+To fix this issue, you need to:
+
+1. CONVERT YOUR INSTAGRAM ACCOUNT:
+   - Open Instagram app or website
+   - Go to Settings > Account
+   - Select "Switch to Business Account"
+   - Choose "Business Account" (not Creator)
+   - Complete the conversion process
+
+2. CREATE A FACEBOOK PAGE (if you don't have one):
+   - Go to https://www.facebook.com/pages
+   - Click "Create Page"
+   - Choose "Business or Brand"
+   - Enter page name (e.g., "My Business")
+   - Choose category (e.g., "Software")
+   - Complete page creation
+
+3. CONNECT INSTAGRAM TO FACEBOOK PAGE:
+   - Go to your Facebook Page
+   - Settings > Instagram
+   - Click "Connect Account"
+   - Log in with your Instagram account
+
+4. RECONNECT IN THIS APP:
+   - Remove current Instagram connection
+   - Connect Instagram again
+   - The app should now find your Instagram Business Account`, response.AccountType, response.ID, response.Username)
 	}
 
+	log.Printf("✅ Instagram account verified as %s account - ready for publishing", response.AccountType)
 	return nil
 }
 
@@ -189,12 +223,46 @@ func (p *InstagramPost) checkBasicInstagramAccount(ctx context.Context) error {
 	log.Printf("Basic Instagram account info - ID: %s, Username: %s", response.ID, response.Username)
 
 	// For basic Instagram accounts, we cannot publish content
-	return fmt.Errorf("Instagram personal accounts cannot publish content via API. Please convert your account to Instagram Business Account or Creator Account and connect it to a Facebook Page")
+	return fmt.Errorf(`Instagram personal accounts cannot publish content via API. 
+
+To fix this issue, you need to:
+
+1. CONVERT YOUR INSTAGRAM ACCOUNT:
+   - Open Instagram app or website
+   - Go to Settings > Account
+   - Select "Switch to Business Account"
+   - Choose "Business Account" (not Creator)
+   - Complete the conversion process
+
+2. CREATE A FACEBOOK PAGE (if you don't have one):
+   - Go to https://www.facebook.com/pages
+   - Click "Create Page"
+   - Choose "Business or Brand"
+   - Enter page name (e.g., "My Business")
+   - Choose category (e.g., "Software")
+   - Complete page creation
+
+3. CONNECT INSTAGRAM TO FACEBOOK PAGE:
+   - Go to your Facebook Page
+   - Settings > Instagram
+   - Click "Connect Account"
+   - Log in with your Instagram account
+
+4. RECONNECT IN THIS APP:
+   - Remove current Instagram connection
+   - Connect Instagram again
+   - The app should now find your Instagram Business Account
+
+Current account: %s (@%s)`, response.ID, response.Username)
 }
 
 // Publish publishes content to Instagram using proper Instagram Graph API
 func (p *InstagramPost) Publish(ctx context.Context, dbProvider data_database.Provider, content string, media []provider.Media) (postID string, err error) {
 	log.Printf("Instagram Publish called with content: %s", content)
+	log.Printf("🔧 Instagram configuration:")
+	log.Printf("   UserID: %s", p.Config.UserID)
+	log.Printf("   AccessToken: %s...", p.Config.AccessToken[:20])
+	log.Printf("   Media count: %d", len(media))
 
 	// Validate configuration first
 	if err := p.validateInstagramConfig(); err != nil {
