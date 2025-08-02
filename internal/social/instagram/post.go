@@ -1,19 +1,15 @@
 package instagram
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime/multipart"
+	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
-
-	"log"
 
 	data_database "github.com/tkowalski/socgo/internal/data/database"
 	"github.com/tkowalski/socgo/internal/data/provider"
@@ -23,6 +19,7 @@ import (
 type InstagramPost struct {
 	Config     *provider.ProviderConfig
 	HttpClient provider.HTTPClient
+	BaseURL    string
 }
 
 // NewInstagramPost creates a new Instagram Post
@@ -30,6 +27,7 @@ func NewInstagramPost(config *provider.ProviderConfig, httpClient provider.HTTPC
 	return &InstagramPost{
 		Config:     config,
 		HttpClient: httpClient,
+		BaseURL:    "https://4df5ab643380.ngrok-free.app", // This should be passed from config
 	}
 }
 
@@ -360,63 +358,41 @@ func (p *InstagramPost) createMediaContainer(ctx context.Context, caption string
 		}
 	}
 
+	// Instagram Graph API requires image_url parameter instead of direct file upload
+	// We need to provide a publicly accessible URL to the image
+	// For now, we'll construct a URL based on the file path
+	// This assumes your app serves uploaded files via HTTP
+	
+	// Convert local file path to public URL
+	// This is a simplified approach - in production, you might use cloud storage
+	imageURL := p.constructPublicImageURL(media.FilePath)
+	log.Printf("Using image URL: %s", imageURL)
+
 	// Prepare form data
-	var b bytes.Buffer
-	writer := multipart.NewWriter(&b)
-
-	// Add access token
-	if err := writer.WriteField("access_token", p.Config.AccessToken); err != nil {
-		return "", fmt.Errorf("failed to write access_token field: %w", err)
-	}
-
-	// Add media type
-	if err := writer.WriteField("media_type", mediaType); err != nil {
-		return "", fmt.Errorf("failed to write media_type field: %w", err)
+	data := url.Values{}
+	data.Set("access_token", p.Config.AccessToken)
+	data.Set("media_type", mediaType)
+	
+	// Use image_url parameter as required by Instagram API
+	if mediaType == "IMAGE" {
+		data.Set("image_url", imageURL)
+	} else if mediaType == "VIDEO" {
+		data.Set("video_url", imageURL)
 	}
 
 	// Add caption if provided
 	if caption != "" {
-		if err := writer.WriteField("caption", caption); err != nil {
-			return "", fmt.Errorf("failed to write caption field: %w", err)
-		}
+		data.Set("caption", caption)
 	}
-
-	// Upload file directly
-	if media.FilePath != "" {
-		// Upload file directly
-		file, err := os.Open(media.FilePath)
-		if err != nil {
-			return "", fmt.Errorf("failed to open file %s: %w", media.FilePath, err)
-		}
-		defer file.Close()
-
-		fieldName := "source"
-		if mediaType == "VIDEO" {
-			fieldName = "video_url" // Instagram requires video_url for videos
-		}
-
-		part, err := writer.CreateFormFile(fieldName, media.FileName)
-		if err != nil {
-			return "", fmt.Errorf("failed to create form file: %w", err)
-		}
-
-		if _, err := io.Copy(part, file); err != nil {
-			return "", fmt.Errorf("failed to copy file data: %w", err)
-		}
-	} else {
-		return "", fmt.Errorf("no file path provided")
-	}
-
-	writer.Close()
 
 	log.Printf("Making request to Instagram Graph API...")
 
 	// Make the request using injected HTTP client
-	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, &b)
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(data.Encode()))
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := p.HttpClient.Do(req)
 	if err != nil {
@@ -459,6 +435,18 @@ func (p *InstagramPost) createMediaContainer(ctx context.Context, caption string
 
 	log.Printf("Successfully created media container with ID: %s", response.ID)
 	return response.ID, nil
+}
+
+// constructPublicImageURL converts a local file path to a publicly accessible URL
+func (p *InstagramPost) constructPublicImageURL(filePath string) string {
+	// Extract filename from path
+	parts := strings.Split(filePath, "/")
+	filename := parts[len(parts)-1]
+	
+	// Construct public URL based on your app's base URL
+	// This assumes your app serves files from /uploads/ endpoint
+	// You might need to adjust this based on your actual file serving setup
+	return fmt.Sprintf("%s/uploads/%s", p.BaseURL, filename)
 }
 
 // createCarouselContainer creates a carousel container for multiple media
