@@ -10,6 +10,7 @@ const (
 	ProviderTypeTikTok    ProviderType = "tiktok"
 	ProviderTypeInstagram ProviderType = "instagram"
 	ProviderTypeFacebook  ProviderType = "facebook"
+	ProviderTypeLinkedIn  ProviderType = "linkedin"
 )
 
 type ProviderConfig struct {
@@ -75,5 +76,14 @@ var SupportedProviders = map[ProviderType]ProviderMetadata{
 		UserInfoURL: "https://graph.facebook.com/me",
 		Scopes:      []string{"public_profile", "email", "pages_show_list", "pages_read_engagement", "pages_manage_posts", "business_management"},
 		RedirectURI: "/oauth/callback/facebook",
+	},
+	ProviderTypeLinkedIn: {
+		Name:        "LinkedIn",
+		Type:        ProviderTypeLinkedIn,
+		AuthURL:     "https://www.linkedin.com/oauth/v2/authorization",
+		TokenURL:    "https://www.linkedin.com/oauth/v2/accessToken",
+		UserInfoURL: "https://api.linkedin.com/v2/userinfo",
+		Scopes:      []string{"openid", "profile", "w_member_social", "email"},
+		RedirectURI: "/oauth/callback/linkedin",
 	},
 }

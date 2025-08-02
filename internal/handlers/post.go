@@ -511,7 +511,7 @@ func (h *PostHandler) HandlePostDetails(w http.ResponseWriter, r *http.Request) 
 				return idRow
 			}
 			return ""
-		}()))
+		}(), post.Content))
 
 		// Add media section if media exists
 		if len(post.Media) > 0 {

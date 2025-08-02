@@ -10,6 +10,7 @@ import (
 	"github.com/tkowalski/socgo/internal/service/database"
 	"github.com/tkowalski/socgo/internal/social/facebook"
 	"github.com/tkowalski/socgo/internal/social/instagram"
+	"github.com/tkowalski/socgo/internal/social/linkedin"
 	"github.com/tkowalski/socgo/internal/social/tiktok"
 )
 
@@ -34,6 +35,8 @@ func (s *Service) createProviderAuth(providerType oauth.ProviderType) (oauth.Pro
 		return facebook.NewOAuth(s.config), nil
 	case oauth.ProviderTypeTikTok:
 		return tiktok.NewOAuth(s.config), nil
+	case oauth.ProviderTypeLinkedIn:
+		return linkedin.NewOAuth(s.config), nil
 	default:
 		return nil, fmt.Errorf("unsupported provider type: %s", providerType)
 	}

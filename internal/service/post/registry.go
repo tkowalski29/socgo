@@ -7,6 +7,7 @@ import (
 	"github.com/tkowalski/socgo/internal/data/provider"
 	"github.com/tkowalski/socgo/internal/social/facebook"
 	"github.com/tkowalski/socgo/internal/social/instagram"
+	"github.com/tkowalski/socgo/internal/social/linkedin"
 	"github.com/tkowalski/socgo/internal/social/tiktok"
 )
 
@@ -17,6 +18,7 @@ const (
 	ProviderTypeTikTok    ProviderType = "tiktok"
 	ProviderTypeInstagram ProviderType = "instagram"
 	ProviderTypeFacebook  ProviderType = "facebook"
+	ProviderTypeLinkedIn  ProviderType = "linkedin"
 )
 
 // ProviderRegistry manages provider instances
@@ -80,6 +82,8 @@ func (f *ProviderFactory) CreateProvider(providerType ProviderType, config *prov
 		return NewInstagramProvider(config, f.httpClient, f.baseURL), nil
 	case ProviderTypeFacebook:
 		return NewFacebookProvider(config, f.httpClient), nil
+	case ProviderTypeLinkedIn:
+		return NewLinkedInProvider(config, f.httpClient, f.baseURL), nil
 	default:
 		return nil, fmt.Errorf("unsupported provider type: %s", providerType)
 	}
@@ -104,4 +108,9 @@ func NewFacebookProvider(config *provider.ProviderConfig, httpClient provider.HT
 		Config:     config,
 		HttpClient: httpClient,
 	}
+}
+
+// NewLinkedInProvider creates a new LinkedIn provider instance
+func NewLinkedInProvider(config *provider.ProviderConfig, httpClient provider.HTTPClient, baseURL string) provider.Provider {
+	return linkedin.NewLinkedInPost(config, httpClient, baseURL)
 }

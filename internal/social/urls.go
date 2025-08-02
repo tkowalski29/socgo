@@ -15,6 +15,8 @@ func BuildExternalURL(providerType, providerName, postID string) string {
 		return fmt.Sprintf("https://www.instagram.com/p/%s/", postID)
 	case "tiktok":
 		return fmt.Sprintf("https://www.tiktok.com/@%s/video/%s", providerName, postID)
+	case "linkedin":
+		return fmt.Sprintf("https://www.linkedin.com/feed/update/%s", postID)
 	default:
 		return ""
 	}
