@@ -352,11 +352,14 @@ func (p *InstagramPost) createMediaContainer(ctx context.Context, caption string
 
 	// Determine media type if not specified
 	if mediaType == "" {
-		mediaType = "IMAGE"
 		if strings.Contains(strings.ToLower(media.MimeType), "video") {
 			mediaType = "VIDEO"
+		} else {
+			mediaType = "IMAGE"
 		}
 	}
+	
+	log.Printf("Determined media type: %s (from MimeType: %s)", mediaType, media.MimeType)
 
 	// Instagram Graph API requires image_url parameter instead of direct file upload
 	// We need to provide a publicly accessible URL to the image
@@ -439,14 +442,25 @@ func (p *InstagramPost) createMediaContainer(ctx context.Context, caption string
 
 // constructPublicImageURL converts a local file path to a publicly accessible URL
 func (p *InstagramPost) constructPublicImageURL(filePath string) string {
-	// Extract filename from path
+	log.Printf("Converting file path to public URL: %s", filePath)
+	log.Printf("BaseURL: %s", p.BaseURL)
+	
+	// If filePath already starts with /uploads/, extract just the filename
+	if strings.HasPrefix(filePath, "/uploads/") {
+		filename := strings.TrimPrefix(filePath, "/uploads/")
+		publicURL := fmt.Sprintf("%s/uploads/%s", p.BaseURL, filename)
+		log.Printf("Public URL constructed: %s", publicURL)
+		return publicURL
+	}
+	
+	// Extract filename from full path
 	parts := strings.Split(filePath, "/")
 	filename := parts[len(parts)-1]
 	
 	// Construct public URL based on your app's base URL
-	// This assumes your app serves files from /uploads/ endpoint
-	// You might need to adjust this based on your actual file serving setup
-	return fmt.Sprintf("%s/uploads/%s", p.BaseURL, filename)
+	publicURL := fmt.Sprintf("%s/uploads/%s", p.BaseURL, filename)
+	log.Printf("Public URL constructed: %s", publicURL)
+	return publicURL
 }
 
 // createCarouselContainer creates a carousel container for multiple media
