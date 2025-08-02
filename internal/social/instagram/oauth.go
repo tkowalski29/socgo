@@ -185,7 +185,7 @@ func (i *OAuth) GetAvailableAccounts(accessToken string) ([]oauth.AccountInfo, e
 	// Check if this is the same account that has Facebook Pages
 	log.Printf("🔍 Checking if this account has Facebook Pages...")
 	if len(pages) == 0 && len(altPages) == 0 {
-		log.Printf("⚠️  WARNING: This Facebook account (%s) has no Facebook Pages!")
+		log.Printf("⚠️  WARNING: This Facebook account has no Facebook Pages!")
 		log.Printf("💡 But you mentioned you have Facebook Page 'Test1'")
 		log.Printf("💡 This suggests you might be using a different Facebook account")
 		log.Printf("")
@@ -201,7 +201,7 @@ func (i *OAuth) GetAvailableAccounts(accessToken string) ([]oauth.AccountInfo, e
 		log.Printf("   4. If yes, there might be a permission issue")
 	}
 
-	// Now try the Instagram-specific endpoint
+	// Get Facebook Pages that can have Instagram Business Accounts connected
 	req, err := http.NewRequest("GET", "https://graph.facebook.com/v18.0/me/accounts", nil)
 	if err != nil {
 		return nil, err
@@ -332,28 +332,45 @@ func (i *OAuth) GetAvailableAccounts(accessToken string) ([]oauth.AccountInfo, e
 		}
 	}
 
-	// If no Instagram Business Accounts found, try to get the user's basic Instagram account
+	// If no Instagram Business Accounts found, provide detailed troubleshooting
 	if len(accounts) == 0 {
-		log.Printf("⚠️  No Instagram Business Accounts found, trying basic Instagram account")
-		log.Printf("⚠️  WARNING: Instagram personal accounts cannot publish content via API")
-		log.Printf("⚠️  To publish content, you need to:")
-		log.Printf("   1. Convert your Instagram account to Business or Creator Account")
-		log.Printf("   2. Connect it to a Facebook Page")
-		log.Printf("   3. Ensure the Facebook Page has an Instagram Business Account")
+		log.Printf("⚠️  No Instagram Business Accounts found!")
+		log.Printf("")
+		log.Printf("🔧 STEP-BY-STEP SOLUTION:")
+		log.Printf("")
+		log.Printf("1. VERIFY YOUR INSTAGRAM ACCOUNT TYPE:")
+		log.Printf("   - Open Instagram app")
+		log.Printf("   - Go to Profile → Settings → Account")
+		log.Printf("   - Check if it shows 'Switch to Personal Account' (means you're Business)")
+		log.Printf("   - If it shows 'Switch to Business Account', click it!")
+		log.Printf("")
+		log.Printf("2. VERIFY FACEBOOK PAGE CONNECTION:")
+		log.Printf("   - Go to your Facebook Page 'Test1'")
+		log.Printf("   - Settings → Instagram")
+		log.Printf("   - Should show connected Instagram account: @tkowalski8")
+		log.Printf("   - If not connected, click 'Connect Account'")
+		log.Printf("")
+		log.Printf("3. VERIFY PERMISSIONS:")
+		log.Printf("   - Your Facebook App needs these permissions:")
+		log.Printf("   - instagram_basic, instagram_content_publish")
+		log.Printf("   - pages_show_list, pages_manage_posts")
+		log.Printf("")
+		log.Printf("4. TEST WITH FACEBOOK PAGE:")
+		log.Printf("   - Since Facebook works, try connecting via Facebook first")
+		log.Printf("   - Facebook Page should show Instagram Business Account")
+		log.Printf("")
+		log.Printf("💡 After fixing above, reconnect Instagram in this app")
 
+		// For debugging purposes, try to get basic user info
 		userInfo, err := i.GetUserInfo(accessToken)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get user info for basic Instagram account: %w", err)
+		if err == nil {
+			log.Printf("📊 Current user: %s (%s)", userInfo.Name, userInfo.ID)
+			log.Printf("💡 This is the Facebook account you're using")
+			log.Printf("💡 Make sure this Facebook account owns Page 'Test1'")
 		}
 
-		// For basic Instagram accounts, we use the user's ID and name
-		accounts = append(accounts, oauth.AccountInfo{
-			ID:       userInfo.ID,
-			Name:     userInfo.Name,
-			Type:     "instagram_basic",
-			Category: "Personal Account (Cannot Publish)",
-		})
-		log.Printf("Added basic Instagram account: %s (%s) - NOTE: This account cannot publish content", userInfo.ID, userInfo.Name)
+		// Return empty accounts array instead of creating a dummy account
+		return accounts, nil
 	}
 
 	log.Printf("📊 Total Instagram accounts found: %d", len(accounts))

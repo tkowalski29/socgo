@@ -321,8 +321,14 @@ func (p *FacebookPost) publishWithMedia(ctx context.Context, content string, med
 	// Close the multipart writer
 	writer.Close()
 
-	// Make the request
-	resp, err := http.Post(url, writer.FormDataContentType(), &b)
+	// Make the request using injected HTTP client
+	req, err := http.NewRequestWithContext(ctx, "POST", url, &b)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := p.HttpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
@@ -413,7 +419,14 @@ func (p *FacebookPost) publishMultipleImages(ctx context.Context, content string
 
 	writer.Close()
 
-	resp, err := http.Post(url, writer.FormDataContentType(), &b)
+	// Make the request using injected HTTP client  
+	req, err := http.NewRequestWithContext(ctx, "POST", url, &b)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := p.HttpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
@@ -475,7 +488,14 @@ func (p *FacebookPost) uploadPhotoUnpublished(ctx context.Context, m provider.Me
 	}
 	writer.Close()
 
-	resp, err := http.Post(url, writer.FormDataContentType(), &b)
+	// Make the request using injected HTTP client
+	req, err := http.NewRequestWithContext(ctx, "POST", url, &b)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := p.HttpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}

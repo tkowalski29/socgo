@@ -20,16 +20,31 @@ Przewodnik integracji SocGo z Instagram Business API dla publikowania zdjęć i 
 
 ### 1. Facebook Developer Console
 
+**WAŻNE**: Instagram Business API używa tego samego Facebook App co Facebook integration!
+
 1. **Dodaj Instagram Basic Display**:
    ```
    Products → Add Product → Instagram Basic Display
    ```
 
-2. **Konfiguruj OAuth**:
-   - Valid OAuth Redirect URIs: `http://localhost:8080/oauth/instagram/callback`
-   - Deauthorize Callback URL: `http://localhost:8080/oauth/instagram/deauth`
+2. **Dodaj Instagram Graph API** (dla Business Accounts):
+   ```
+   Products → Add Product → Instagram Graph API
+   ```
 
-3. **Instagram App Review** (dla production):
+3. **Konfiguruj OAuth**:
+   - Valid OAuth Redirect URIs: `https://your-domain.com/oauth/callback/instagram`
+   - Deauthorize Callback URL: `https://your-domain.com/oauth/instagram/deauth`
+
+4. **Wymagane uprawnienia**:
+   - `instagram_basic` - podstawowy dostęp
+   - `instagram_content_publish` - publikowanie treści
+   - `pages_show_list` - dostęp do Facebook Pages
+   - `pages_manage_posts` - zarządzanie postami
+   - `business_management` - zarządzanie biznesem
+   - `instagram_manage_insights` - statystyki
+
+5. **Instagram App Review** (dla production):
    - `instagram_content_publish` wymaga App Review
    - Przygotuj demo video i use case description
 
@@ -38,23 +53,23 @@ Przewodnik integracji SocGo z Instagram Business API dla publikowania zdjęć i 
 W `config.yml`:
 
 ```yaml
-oauth:
+providers:
   instagram:
-    client_id: "your_instagram_app_id"
-    client_secret: "your_instagram_app_secret"
-    redirect_url: "http://localhost:8080/oauth/instagram/callback"
-    scopes:
-      - "instagram_basic"
-      - "instagram_content_publish"
-    api_version: "v18.0"
-    
-    # Instagram-specific settings
-    image_quality: 95
-    max_image_size: 8388608  # 8MB
-    supported_formats: ["jpg", "jpeg", "png"]
-    aspect_ratio:
-      min: 0.8   # 4:5 portrait
-      max: 1.91  # 1.91:1 landscape
+    - name: "Business Instagram"
+      client_id: "1257514362687930"      # SAME as Facebook App ID
+      client_secret: "4d90f3031c441626842775c2ef7cad3b"  # SAME as Facebook
+      description: "Instagram Business account via Facebook Page"
+  
+  facebook:
+    - name: "Business Facebook"
+      client_id: "1257514362687930"      # SAME as Instagram
+      client_secret: "4d90f3031c441626842775c2ef7cad3b"  # SAME as Instagram
+      description: "Facebook Page for Instagram connection"
+
+# OAuth Scopes (internal/data/oauth/oauth.go):
+# instagram_basic, instagram_content_publish, pages_show_list, 
+# pages_read_engagement, pages_manage_posts, business_management, 
+# instagram_manage_insights
 ```
 
 ## 🔗 Proces połączenia

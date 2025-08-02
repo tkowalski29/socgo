@@ -58,12 +58,13 @@ func (p *InstagramPost) validateInstagramConfig() error {
 
 // isValidInstagramBusinessAccountID checks if the UserID looks like a valid Instagram Business Account ID
 func isValidInstagramBusinessAccountID(userID string) bool {
-	// Instagram Business Account IDs are typically numeric and 15-16 digits
-	if len(userID) < 10 || len(userID) > 20 {
+	// Instagram Business Account IDs are typically numeric and 10-20 digits
+	// Allow for different ID formats from Facebook Graph API
+	if len(userID) < 8 || len(userID) > 25 {
 		return false
 	}
 
-	// Check if it's numeric
+	// Check if it's numeric (Instagram Business Account IDs are always numeric)
 	for _, char := range userID {
 		if char < '0' || char > '9' {
 			return false
@@ -261,7 +262,15 @@ func (p *InstagramPost) Publish(ctx context.Context, dbProvider data_database.Pr
 	log.Printf("Instagram Publish called with content: %s", content)
 	log.Printf("🔧 Instagram configuration:")
 	log.Printf("   UserID: %s", p.Config.UserID)
-	log.Printf("   AccessToken: %s...", p.Config.AccessToken[:20])
+	
+	// Safely log access token prefix
+	tokenPreview := p.Config.AccessToken
+	if len(tokenPreview) > 20 {
+		tokenPreview = tokenPreview[:20] + "..."
+	} else if len(tokenPreview) > 5 {
+		tokenPreview = tokenPreview[:5] + "..."
+	}
+	log.Printf("   AccessToken: %s", tokenPreview)
 	log.Printf("   Media count: %d", len(media))
 
 	// Validate configuration first
@@ -416,8 +425,14 @@ func (p *InstagramPost) createMediaContainer(ctx context.Context, caption string
 
 	log.Printf("Making request to Instagram Graph API...")
 
-	// Make the request
-	resp, err := http.Post(apiURL, writer.FormDataContentType(), &b)
+	// Make the request using injected HTTP client
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, &b)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := p.HttpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}

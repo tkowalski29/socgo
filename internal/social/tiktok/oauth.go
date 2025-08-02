@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -38,7 +39,17 @@ func (t *OAuth) GetConnectURL(userID string, providerName string, providerConfig
 	params.Add("state", fmt.Sprintf("%s:%s", userID, providerName))
 	params.Add("auth_type", "code") // TikTok specific parameter
 
-	return metadata.AuthURL + "?" + params.Encode(), nil
+	authURL := metadata.AuthURL + "?" + params.Encode()
+
+	// Log the OAuth URL details for debugging
+	log.Printf("🔗 TikTok OAuth URL being generated:")
+	log.Printf("   Client Key: %s", providerConfig.ClientID)
+	log.Printf("   Redirect URI: %s", t.GetRedirectURI(oauth.ProviderTypeTikTok))
+	log.Printf("   Scopes: %s", strings.Join(metadata.Scopes, " "))
+	log.Printf("   Auth URL: %s", metadata.AuthURL)
+	log.Printf("   Final URL: %s", authURL)
+
+	return authURL, nil
 }
 
 func (t *OAuth) ExchangeCodeForToken(code string, providerConfig *config.ProviderInstance) (*oauth.ProviderConfig, error) {
@@ -50,6 +61,13 @@ func (t *OAuth) ExchangeCodeForToken(code string, providerConfig *config.Provide
 	data.Set("client_secret", providerConfig.ClientSecret)
 	data.Set("code", code)
 	data.Set("redirect_uri", t.GetRedirectURI(oauth.ProviderTypeTikTok))
+
+	// Log the token exchange request for debugging
+	log.Printf("🔄 TikTok token exchange request:")
+	log.Printf("   Client Key: %s", providerConfig.ClientID)
+	log.Printf("   Redirect URI: %s", t.GetRedirectURI(oauth.ProviderTypeTikTok))
+	log.Printf("   Token URL: %s", metadata.TokenURL)
+	log.Printf("   Request data: %s", data.Encode())
 
 	req, err := http.NewRequest("POST", metadata.TokenURL, strings.NewReader(data.Encode()))
 	if err != nil {
@@ -65,8 +83,17 @@ func (t *OAuth) ExchangeCodeForToken(code string, providerConfig *config.Provide
 	}
 	defer resp.Body.Close()
 
+	// Read response body for better error information
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	log.Printf("📡 TikTok token exchange response:")
+	log.Printf("   Status: %d", resp.StatusCode)
+	log.Printf("   Body: %s", string(bodyBytes))
+
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("token request failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
 
@@ -78,7 +105,7 @@ func (t *OAuth) ExchangeCodeForToken(code string, providerConfig *config.Provide
 		Scope        string `json:"scope"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
+	if err := json.Unmarshal(bodyBytes, &tokenResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode token response: %w", err)
 	}
 
