@@ -24,9 +24,9 @@ type ProviderService struct {
 }
 
 // NewProviderService creates a new provider service
-func NewProviderService(dbManager *database.Manager, oauthService *oauth.Service) *ProviderService {
+func NewProviderService(dbManager *database.Manager, oauthService *oauth.Service, baseURL string) *ProviderService {
 	registry := NewProviderRegistry()
-	factory := NewProviderFactory(&http.Client{})
+	factory := NewProviderFactory(&http.Client{}, baseURL)
 
 	return &ProviderService{
 		registry:     registry,

@@ -23,11 +23,11 @@ type InstagramPost struct {
 }
 
 // NewInstagramPost creates a new Instagram Post
-func NewInstagramPost(config *provider.ProviderConfig, httpClient provider.HTTPClient) *InstagramPost {
+func NewInstagramPost(config *provider.ProviderConfig, httpClient provider.HTTPClient, baseURL string) *InstagramPost {
 	return &InstagramPost{
 		Config:     config,
 		HttpClient: httpClient,
-		BaseURL:    "https://4df5ab643380.ngrok-free.app", // This should be passed from config
+		BaseURL:    baseURL,
 	}
 }
 

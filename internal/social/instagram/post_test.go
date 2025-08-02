@@ -217,6 +217,7 @@ func TestInstagramPost_checkInstagramPermissions(t *testing.T) {
 					AccessToken: "test_token",
 				},
 				HttpClient: mockClient,
+				BaseURL:    "https://test.example.com",
 			}
 
 			err := p.checkInstagramPermissions(context.Background())
@@ -256,6 +257,7 @@ func TestInstagramPost_Publish_NoMedia(t *testing.T) {
 			AccessToken: "test_token",
 		},
 		HttpClient: mockClient,
+		BaseURL:    "https://test.example.com",
 	}
 
 	// Create a mock database provider
@@ -308,6 +310,7 @@ func TestInstagramPost_createMediaContainer(t *testing.T) {
 			AccessToken: "test_token",
 		},
 		HttpClient: mockClient,
+		BaseURL:    "https://test.example.com",
 	}
 
 	// Create a temporary test file path
@@ -322,13 +325,17 @@ func TestInstagramPost_createMediaContainer(t *testing.T) {
 		MimeType: "image/jpeg",
 	}
 
-	// This test will fail because the file doesn't exist
-	// In a proper test setup, you'd create test files
-	_, err := p.createMediaContainer(context.Background(), "Test caption", media, "")
+	// Test that media container creation works when API returns success
+	// In this test, we're mocking a successful API response
+	containerID, err := p.createMediaContainer(context.Background(), "Test caption", media, "")
 	
-	// We expect an error because the file doesn't exist
-	if err == nil {
-		t.Error("Expected error for non-existent file")
+	// We expect success because the API is mocked to return success
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	
+	if containerID != "container_123456" {
+		t.Errorf("Expected container ID 'container_123456', got '%s'", containerID)
 	}
 }
 
@@ -390,6 +397,7 @@ func TestInstagramPost_GetStatus(t *testing.T) {
 					AccessToken: "test_token",
 				},
 				HttpClient: mockClient,
+				BaseURL:    "https://test.example.com",
 			}
 
 			status, err := p.GetStatus(context.Background(), tt.postID)

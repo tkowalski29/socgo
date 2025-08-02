@@ -78,7 +78,7 @@ func TestProviderService_PublishContent(t *testing.T) {
 	oauthService := &oauth.Service{}
 
 	// Create provider service
-	service := NewProviderService(dbManager, oauthService)
+	service := NewProviderService(dbManager, oauthService, "http://localhost:8080")
 
 	// Create test provider
 	userID := "test_user"
@@ -136,7 +136,7 @@ func TestProviderService_PublishContent(t *testing.T) {
 
 func TestProviderService_GetSupportedProviders(t *testing.T) {
 	// Create provider service
-	service := NewProviderService(nil, nil)
+	service := NewProviderService(nil, nil, "http://localhost:8080")
 
 	// Get supported providers
 	providers := service.GetSupportedProviders()
@@ -184,7 +184,7 @@ func TestProviderService_IsProviderConfigured(t *testing.T) {
 	createTestProvider(t, db, userID, providerName)
 
 	// Create provider service
-	service := NewProviderService(nil, nil)
+	service := NewProviderService(nil, nil, "http://localhost:8080")
 
 	// Test configured provider
 	configured, err := service.IsProviderConfigured(userID, providerName)

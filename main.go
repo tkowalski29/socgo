@@ -36,7 +36,7 @@ func main() {
 	oauthService := oauth.NewService(dbManager, cfg)
 	container.Register("oauth_service", oauthService)
 
-	providerService := post.NewProviderService(dbManager, oauthService)
+	providerService := post.NewProviderService(dbManager, oauthService, cfg.Server.BaseURL)
 	container.Register("provider_service", providerService)
 
 	notificationService := notifications.NewService(dbManager)

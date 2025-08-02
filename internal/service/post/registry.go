@@ -57,15 +57,17 @@ func (r *ProviderRegistry) GetSupportedProviders() []ProviderType {
 // ProviderFactory creates provider instances
 type ProviderFactory struct {
 	httpClient provider.HTTPClient
+	baseURL    string
 }
 
 // NewProviderFactory creates a new provider factory
-func NewProviderFactory(httpClient provider.HTTPClient) *ProviderFactory {
+func NewProviderFactory(httpClient provider.HTTPClient, baseURL string) *ProviderFactory {
 	if httpClient == nil {
 		httpClient = &http.Client{}
 	}
 	return &ProviderFactory{
 		httpClient: httpClient,
+		baseURL:    baseURL,
 	}
 }
 
@@ -75,7 +77,7 @@ func (f *ProviderFactory) CreateProvider(providerType ProviderType, config *prov
 	case ProviderTypeTikTok:
 		return NewTikTokProvider(config, f.httpClient), nil
 	case ProviderTypeInstagram:
-		return NewInstagramProvider(config, f.httpClient), nil
+		return NewInstagramProvider(config, f.httpClient, f.baseURL), nil
 	case ProviderTypeFacebook:
 		return NewFacebookProvider(config, f.httpClient), nil
 	default:
@@ -92,12 +94,8 @@ func NewTikTokProvider(config *provider.ProviderConfig, httpClient provider.HTTP
 }
 
 // NewInstagramProvider creates a new Instagram provider instance
-func NewInstagramProvider(config *provider.ProviderConfig, httpClient provider.HTTPClient) provider.Provider {
-	return &instagram.InstagramPost{
-		Config:     config,
-		HttpClient: httpClient,
-		BaseURL:    "https://4df5ab643380.ngrok-free.app", // TODO: This should come from server config
-	}
+func NewInstagramProvider(config *provider.ProviderConfig, httpClient provider.HTTPClient, baseURL string) provider.Provider {
+	return instagram.NewInstagramPost(config, httpClient, baseURL)
 }
 
 // NewFacebookProvider creates a new Facebook provider instance
