@@ -96,6 +96,7 @@ func NewInstagramProvider(config *provider.ProviderConfig, httpClient provider.H
 	return &instagram.InstagramPost{
 		Config:     config,
 		HttpClient: httpClient,
+		BaseURL:    "https://4df5ab643380.ngrok-free.app", // TODO: This should come from server config
 	}
 }
 
