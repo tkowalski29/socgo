@@ -143,5 +143,6 @@ func (s *Service) GetAvailableProviders() map[string][]config.ProviderInstance {
 		"tiktok":    s.config.GetAllProviderInstances("tiktok"),
 		"instagram": s.config.GetAllProviderInstances("instagram"),
 		"facebook":  s.config.GetAllProviderInstances("facebook"),
+		"linkedin":  s.config.GetAllProviderInstances("linkedin"),
 	}
 }
