@@ -71,25 +71,53 @@ func TestLinkedInOAuth_ExchangeCodeForToken(t *testing.T) {
 		},
 	}
 
-	oauth := NewOAuth(cfg)
-
 	providerConfig := &config.ProviderInstance{
 		ClientID:     "test_client_id",
 		ClientSecret: "test_client_secret",
 	}
 
-	// Note: This test would require mocking HTTP client properly
-	// For now, we'll test that the function exists and accepts correct parameters
-	_, err := oauth.ExchangeCodeForToken("test_code", providerConfig)
-	// We expect this to fail since we're not mocking HTTP properly
-	if err == nil {
-		t.Logf("ExchangeCodeForToken returned unexpectedly without error")
+	// Mock token response
+	tokenResponse := map[string]interface{}{
+		"access_token":  "test_access_token",
+		"token_type":    "Bearer",
+		"expires_in":    3600,
+		"refresh_token": "test_refresh_token",
+		"scope":         "openid profile w_member_social email",
+	}
+
+	responseBody, _ := json.Marshal(tokenResponse)
+
+	// Create mock HTTP client
+	mockClient := &MockHTTPClient{
+		DoFunc: func(req *http.Request) (*http.Response, error) {
+			resp := &http.Response{
+				StatusCode: 200,
+				Body:       io.NopCloser(strings.NewReader(string(responseBody))),
+				Header:     make(http.Header),
+			}
+			resp.Header.Set("Content-Type", "application/json")
+			return resp, nil
+		},
+	}
+
+	oauth := NewOAuthWithClient(cfg, mockClient)
+
+	config, err := oauth.ExchangeCodeForToken("test_code", providerConfig)
+	if err != nil {
+		t.Fatalf("ExchangeCodeForToken failed: %v", err)
+	}
+
+	if config.AccessToken != "test_access_token" {
+		t.Errorf("Expected access token 'test_access_token', got: %s", config.AccessToken)
+	}
+
+	if config.TokenType != "Bearer" {
+		t.Errorf("Expected token type 'Bearer', got: %s", config.TokenType)
 	}
 }
 
 func TestLinkedInOAuth_GetUserInfo(t *testing.T) {
 	cfg := &config.Config{}
-	oauth := NewOAuth(cfg)
 
 	// Mock user info response
 	userInfoResponse := map[string]interface{}{
@@ -125,14 +153,7 @@ func TestLinkedInOAuth_GetUserInfo(t *testing.T) {
 		},
 	}
 
-	// Override default HTTP client
-	originalClient := http.DefaultClient
-	defer func() { http.DefaultClient = originalClient }()
-
-	http.DefaultClient = &http.Client{
-		Transport: &mockTransport{mockClient},
-	}
-
+	oauth := NewOAuthWithClient(cfg, mockClient)
 	userInfo, err := oauth.GetUserInfo("test_token")
 	if err != nil {
 		t.Fatalf("GetUserInfo failed: %v", err)
@@ -153,7 +174,6 @@ func TestLinkedInOAuth_GetUserInfo(t *testing.T) {
 
 func TestLinkedInOAuth_GetAvailableAccounts(t *testing.T) {
 	cfg := &config.Config{}
-	oauth := NewOAuth(cfg)
 
 	// For LinkedIn, GetAvailableAccounts calls GetUserInfo
 	// Mock user info response
@@ -178,14 +198,7 @@ func TestLinkedInOAuth_GetAvailableAccounts(t *testing.T) {
 		},
 	}
 
-	// Override default HTTP client
-	originalClient := http.DefaultClient
-	defer func() { http.DefaultClient = originalClient }()
-
-	http.DefaultClient = &http.Client{
-		Transport: &mockTransport{mockClient},
-	}
-
+	oauth := NewOAuthWithClient(cfg, mockClient)
 	accounts, err := oauth.GetAvailableAccounts("test_token")
 	if err != nil {
 		t.Fatalf("GetAvailableAccounts failed: %v", err)
@@ -211,7 +224,6 @@ func TestLinkedInOAuth_GetAvailableAccounts(t *testing.T) {
 
 func TestLinkedInOAuth_SaveAllAccounts(t *testing.T) {
 	cfg := &config.Config{}
-	oauth := NewOAuth(cfg)
 
 	token := &oauth_data.ProviderConfig{
 		AccessToken:  "test_access_token",
@@ -241,13 +253,7 @@ func TestLinkedInOAuth_SaveAllAccounts(t *testing.T) {
 		},
 	}
 
-	// Override default HTTP client
-	originalClient := http.DefaultClient
-	defer func() { http.DefaultClient = originalClient }()
-
-	http.DefaultClient = &http.Client{
-		Transport: &mockTransport{mockClient},
-	}
+	oauth := NewOAuthWithClient(cfg, mockClient)
 
 	// Mock saveFunc
 	var savedProviders []string

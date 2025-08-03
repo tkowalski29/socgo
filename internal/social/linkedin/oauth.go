@@ -14,13 +14,26 @@ import (
 	"github.com/tkowalski/socgo/internal/data/oauth"
 )
 
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 type OAuth struct {
 	*oauth.BaseProviderAuth
+	httpClient HTTPClient
 }
 
 func NewOAuth(cfg *config.Config) *OAuth {
 	return &OAuth{
 		BaseProviderAuth: oauth.NewBaseProviderAuth(cfg),
+		httpClient:       &http.Client{Timeout: 30 * time.Second},
+	}
+}
+
+func NewOAuthWithClient(cfg *config.Config, client HTTPClient) *OAuth {
+	return &OAuth{
+		BaseProviderAuth: oauth.NewBaseProviderAuth(cfg),
+		httpClient:       client,
 	}
 }
 
@@ -63,7 +76,13 @@ func (l *OAuth) ExchangeCodeForToken(code string, providerConfig *config.Provide
 	log.Printf("   Token URL: %s", metadata.TokenURL)
 	log.Printf("   Code: %s...", code[:min(len(code), 10)])
 
-	resp, err := http.Post(metadata.TokenURL, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+	req, err := http.NewRequest("POST", metadata.TokenURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := l.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange code for token: %w", err)
 	}
@@ -127,8 +146,7 @@ func (l *OAuth) GetUserInfo(accessToken string) (*oauth.UserInfo, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := l.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}
