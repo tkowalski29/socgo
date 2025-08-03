@@ -39,6 +39,7 @@ type ProvidersConfig struct {
 	TikTok    []ProviderInstance `yaml:"tiktok"`
 	Instagram []ProviderInstance `yaml:"instagram"`
 	Facebook  []ProviderInstance `yaml:"facebook"`
+	LinkedIn  []ProviderInstance `yaml:"linkedin"`
 }
 
 type ProviderInstance struct {
@@ -110,6 +111,7 @@ func loadFromEnv() *Config {
 			TikTok:    []ProviderInstance{},
 			Instagram: []ProviderInstance{},
 			Facebook:  []ProviderInstance{},
+			LinkedIn:  []ProviderInstance{},
 		},
 	}
 }
@@ -182,6 +184,8 @@ func (c *Config) GetProviderConfig(providerType, name string) (*ProviderInstance
 		instances = c.Providers.Instagram
 	case "facebook":
 		instances = c.Providers.Facebook
+	case "linkedin":
+		instances = c.Providers.LinkedIn
 	default:
 		return nil, fmt.Errorf("unsupported provider type: %s", providerType)
 	}
@@ -204,6 +208,8 @@ func (c *Config) GetAllProviderInstances(providerType string) []ProviderInstance
 		return c.Providers.Instagram
 	case "facebook":
 		return c.Providers.Facebook
+	case "linkedin":
+		return c.Providers.LinkedIn
 	default:
 		return []ProviderInstance{}
 	}
