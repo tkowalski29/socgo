@@ -1,0 +1,52 @@
+2025/08/03 18:22:42 No .env file found, using defaults and environment variables
+2025/08/03 18:22:42 Server will start on: localhost:8081
+2025/08/03 18:22:42 Base URL for OAuth: https://4df5ab643380.ngrok-free.app
+2025/08/03 18:22:42 Starting post scheduler...
+2025/08/03 18:22:42 Processing pending posts...
+2025/08/03 18:22:42 Starting server on localhost:8081
+2025/08/03 18:22:50 🔍 Available providers: map[facebook:[{Name:SocGo ClientID:1257514362687930 ClientSecret:4d90f3031c441626842775c2ef7cad3b Description:SocGo Facebook application}] instagram:[{Name:SocGo ClientID:1257514362687930 ClientSecret:4d90f3031c441626842775c2ef7cad3b Description:SocGo Instagram application}] linkedin:[{Name:SocGo ClientID:77kp1nyfkwxmaq ClientSecret:WPL_AP1.VTy0A8CNeoNmchMi.UechvA== Description:SocGo LinkedIn application}] tiktok:[{Name:SocGo ClientID:sbawkn083wpc6og6j4 ClientSecret:9GhCeym5FlR83tiaalmdXoHHUFKq7KdO Description:SocGo TikTok application}]]
+2025/08/03 18:22:50    Provider type: tiktok, instances: 1
+2025/08/03 18:22:50      [0] Name: SocGo, Description: SocGo TikTok application
+2025/08/03 18:22:50    Provider type: instagram, instances: 1
+2025/08/03 18:22:50      [0] Name: SocGo, Description: SocGo Instagram application
+2025/08/03 18:22:50    Provider type: facebook, instances: 1
+2025/08/03 18:22:50      [0] Name: SocGo, Description: SocGo Facebook application
+2025/08/03 18:22:50    Provider type: linkedin, instances: 1
+2025/08/03 18:22:50      [0] Name: SocGo, Description: SocGo LinkedIn application
+2025/08/03 18:23:02 Found multiple provider fields: [4]
+2025/08/03 18:23:02 Final provider IDs (after deduplication): [4]
+2025/08/03 18:23:02 Created post with ID 20 for provider 4
+2025/08/03 18:23:02 Successfully created 1 posts in database
+2025/08/03 18:23:42 Processing pending posts...
+2025/08/03 18:23:42 Found 1 pending posts ready for publication
+2025/08/03 18:23:42 Publishing post ID 20 for provider SocGo_Tomasz Kowalski (ID: 4, Type: linkedin)
+2025/08/03 18:23:42 PublishContentByID called for providerID: 4, user: default_user
+2025/08/03 18:23:42 Found provider in database: ID=4, Name=SocGo_Tomasz Kowalski, Type=linkedin
+2025/08/03 18:23:42 LinkedIn Publish called with content: test2
+2025/08/03 18:23:42 🔧 LinkedIn configuration:
+2025/08/03 18:23:42    UserID: 0TADoFWLQX
+2025/08/03 18:23:42    AccessToken: AQX2Qqac3voHWQr3rrFG...
+2025/08/03 18:23:42    Media count: 1
+2025/08/03 18:23:42 ⚠️ Media publishing to LinkedIn not fully implemented yet
+2025/08/03 18:23:42 📁 Media provided: 1.jpg (type: image/jpeg)
+2025/08/03 18:23:42 📝 Publishing as text-only post for now
+2025/08/03 18:23:42 Making request to LinkedIn UGC Posts API...
+2025/08/03 18:23:42 API URL: https://api.linkedin.com/v2/ugcPosts
+2025/08/03 18:23:42 Payload: {"author":"urn:li:person:0TADoFWLQX","lifecycleState":"PUBLISHED","specificContent":{"com.linkedin.ugc.ShareContent":{"shareCommentary":{"text":"test2\n\n[Media: 1.jpg]"},"shareMediaCategory":"NONE"}},"visibility":{"com.linkedin.ugc.MemberNetworkVisibility":"PUBLIC"}}
+2025/08/03 18:23:44 LinkedIn API response status: 201
+2025/08/03 18:23:44 LinkedIn API response body: {"id":"urn:li:share:7357808399582978048"}
+2025/08/03 18:23:44 Successfully published LinkedIn post with ID: urn:li:share:7357808399582978048
+2025/08/03 18:23:44 Post 20 published successfully. Provider: SocGo_Tomasz Kowalski, PostID: urn:li:share:7357808399582978048
+2025/08/03 18:23:44 Publishing completed: 1 published, 0 failed
+2025/08/03 18:24:42 Processing pending posts...
+2025/08/03 18:24:42 Found 0 pending posts ready for publication
+2025/08/03 18:24:42 No pending posts to publish
+2025/08/03 18:25:42 Processing pending posts...
+2025/08/03 18:25:42 Found 0 pending posts ready for publication
+2025/08/03 18:25:42 No pending posts to publish
+2025/08/03 18:26:42 Processing pending posts...
+2025/08/03 18:26:42 Found 0 pending posts ready for publication
+2025/08/03 18:26:42 No pending posts to publish
+2025/08/03 18:27:17 Shutting down...
+2025/08/03 18:27:17 Stopping post scheduler...
+2025/08/03 18:27:17 Goodbye!
