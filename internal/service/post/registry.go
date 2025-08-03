@@ -77,7 +77,7 @@ func NewProviderFactory(httpClient provider.HTTPClient, baseURL string) *Provide
 func (f *ProviderFactory) CreateProvider(providerType ProviderType, config *provider.ProviderConfig) (provider.Provider, error) {
 	switch providerType {
 	case ProviderTypeTikTok:
-		return NewTikTokProvider(config, f.httpClient), nil
+		return NewTikTokProvider(config, f.httpClient, f.baseURL), nil
 	case ProviderTypeInstagram:
 		return NewInstagramProvider(config, f.httpClient, f.baseURL), nil
 	case ProviderTypeFacebook:
@@ -90,11 +90,8 @@ func (f *ProviderFactory) CreateProvider(providerType ProviderType, config *prov
 }
 
 // NewTikTokProvider creates a new TikTok provider instance
-func NewTikTokProvider(config *provider.ProviderConfig, httpClient provider.HTTPClient) provider.Provider {
-	return &tiktok.TikTokPost{
-		Config:     config,
-		HttpClient: httpClient,
-	}
+func NewTikTokProvider(config *provider.ProviderConfig, httpClient provider.HTTPClient, baseURL string) provider.Provider {
+	return tiktok.NewTikTokPost(config, httpClient, baseURL)
 }
 
 // NewInstagramProvider creates a new Instagram provider instance

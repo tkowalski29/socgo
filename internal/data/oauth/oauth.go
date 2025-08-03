@@ -56,6 +56,7 @@ var SupportedProviders = map[ProviderType]ProviderMetadata{
 		AuthURL:     "https://www.tiktok.com/v2/auth/authorize/",
 		TokenURL:    "https://open.tiktokapis.com/v2/oauth/token/",
 		UserInfoURL: "https://open.tiktokapis.com/v2/user/info/",
+		// Scopes:      []string{"user.info.basic", "user.info.profile", "video.publish", "video.upload"},
 		Scopes:      []string{"user.info.profile"},
 		RedirectURI: "/oauth/callback/tiktok",
 	},

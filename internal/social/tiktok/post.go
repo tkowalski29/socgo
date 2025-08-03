@@ -22,13 +22,15 @@ import (
 type TikTokPost struct {
 	Config     *provider.ProviderConfig
 	HttpClient provider.HTTPClient
+	BaseURL    string
 }
 
 // NewTikTokPost creates a new TikTok Post
-func NewTikTokPost(config *provider.ProviderConfig, httpClient provider.HTTPClient) *TikTokPost {
+func NewTikTokPost(config *provider.ProviderConfig, httpClient provider.HTTPClient, baseURL string) *TikTokPost {
 	return &TikTokPost{
 		Config:     config,
 		HttpClient: httpClient,
+		BaseURL:    baseURL,
 	}
 }
 
@@ -58,7 +60,7 @@ func (p *TikTokPost) publishSingleVideo(ctx context.Context, content string, med
 	}
 
 	// Step 1: Initialize video upload
-	uploadURL, uploadHeaders, err := p.initializeVideoUpload(ctx, media)
+	videoID, uploadURL, uploadHeaders, err := p.initializeVideoUpload(ctx, content, media)
 	if err != nil {
 		return "", fmt.Errorf("failed to initialize video upload: %w", err)
 	}
@@ -69,7 +71,7 @@ func (p *TikTokPost) publishSingleVideo(ctx context.Context, content string, med
 	}
 
 	// Step 3: Create and publish post
-	publishedID, err := p.createVideoPost(ctx, content, media)
+	publishedID, err := p.createVideoPost(ctx, content, videoID)
 	if err != nil {
 		return "", fmt.Errorf("failed to create video post: %w", err)
 	}
@@ -120,50 +122,69 @@ func (p *TikTokPost) validateVideoFile(media provider.Media) error {
 }
 
 // initializeVideoUpload initializes the video upload using TikTok Content Posting API v2
-func (p *TikTokPost) initializeVideoUpload(ctx context.Context, media provider.Media) (uploadURL string, uploadHeaders map[string]string, err error) {
-	// TikTok Content Posting API v2 endpoint for upload initialization
-	apiURL := "https://open.tiktokapis.com/v2/post/video/init/"
-
-	// Get file size
+func (p *TikTokPost) initializeVideoUpload(ctx context.Context, content string, media provider.Media) (videoID string, uploadURL string, uploadHeaders map[string]string, err error) {
+	// TikTok Content Posting API v2 endpoint for direct post
+	apiURL := "https://open.tiktokapis.com/v2/post/publish/video/init/"
+	
+	// Get file size first
 	fileInfo, err := os.Stat(media.FilePath)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to get file info: %w", err)
+		return "", "", nil, fmt.Errorf("failed to get file info: %w", err)
 	}
 
-	// Prepare form data
-	data := url.Values{}
-	data.Set("source_info", fmt.Sprintf(`{"source": "FILE_UPLOAD", "video_size": %d, "chunk_size": %d, "total_chunk_count": 1}`,
-		fileInfo.Size(), fileInfo.Size()))
+	log.Printf("🚀 TikTok API: Initializing video upload")
+	log.Printf("   API URL: %s", apiURL)
+	log.Printf("   Video file: %s", media.FileName)
+	log.Printf("   Video size: %d bytes", fileInfo.Size())
+
+	// Prepare JSON payload according to TikTok API v2 specifications
+	payload := map[string]interface{}{
+		"post_info": map[string]interface{}{
+			"title":         content,
+			"privacy_level": "SELF_ONLY",
+		},
+		"source_info": map[string]interface{}{
+			"source":              "FILE_UPLOAD",
+			"video_size":         fileInfo.Size(),
+			"chunk_size":         fileInfo.Size(),
+			"total_chunk_count":  1,
+		},
+	}
+
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to marshal payload: %w", err)
+	}
 
 	// Make the request using injected HTTP client
-	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(data.Encode()))
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewReader(jsonPayload))
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to create request: %w", err)
+		return "", "", nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+p.Config.AccessToken)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
 
 	resp, err := p.HttpClient.Do(req)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to make request: %w", err)
+		return "", "", nil, fmt.Errorf("failed to make request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// Read response
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to read response body: %w", err)
+		return "", "", nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", nil, fmt.Errorf("initialize upload failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
+		return "", "", nil, fmt.Errorf("initialize upload failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	// Parse response
 	var response struct {
 		Data struct {
-			VideoID       string            `json:"video_id"`
+			PublishID     string            `json:"publish_id"`
 			UploadURL     string            `json:"upload_url"`
 			UploadHeaders map[string]string `json:"upload_headers"`
 		} `json:"data"`
@@ -174,14 +195,15 @@ func (p *TikTokPost) initializeVideoUpload(ctx context.Context, media provider.M
 	}
 
 	if err := json.Unmarshal(bodyBytes, &response); err != nil {
-		return "", nil, fmt.Errorf("failed to decode response: %w", err)
+		return "", "", nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	if response.Error.Message != "" {
-		return "", nil, fmt.Errorf("TikTok API error: %s (code: %s)", response.Error.Message, response.Error.Code)
+		return "", "", nil, fmt.Errorf("TikTok API error: %s (code: %s)", response.Error.Message, response.Error.Code)
 	}
 
-	return response.Data.UploadURL, response.Data.UploadHeaders, nil
+	// Return publish_id as videoID for compatibility with our existing flow
+	return response.Data.PublishID, response.Data.UploadURL, response.Data.UploadHeaders, nil
 }
 
 // uploadVideoFile uploads the video file to TikTok's upload endpoint
@@ -223,26 +245,20 @@ func (p *TikTokPost) uploadVideoFile(ctx context.Context, uploadURL string, uplo
 }
 
 // createVideoPost creates and publishes the video post using TikTok Content Posting API v2
-func (p *TikTokPost) createVideoPost(ctx context.Context, content string, media provider.Media) (string, error) {
-	// TikTok Content Posting API v2 endpoint for creating posts
-	apiURL := "https://open.tiktokapis.com/v2/post/video/create/"
+func (p *TikTokPost) createVideoPost(ctx context.Context, content string, videoID string) (string, error) {
+	// TikTok Content Posting API v2 endpoint for direct posts  
+	apiURL := "https://open.tiktokapis.com/v2/post/publish/video/"
 
-	// Prepare post data
+	// Prepare post data using publish_id from initialization
 	postData := map[string]interface{}{
-		"text": content,
-		"video_info": map[string]interface{}{
-			"video_id": media.FileName, // This should be the video_id from upload response
-		},
+		"publish_id": videoID, // Use publish_id from upload initialization
 		"post_info": map[string]interface{}{
 			"title":                    content,
-			"privacy_level":            "PUBLIC_TO_EVERYONE",
+			"privacy_level":            "SELF_ONLY",
 			"disable_duet":             false,
 			"disable_stitch":           false,
 			"disable_comment":          false,
 			"video_cover_timestamp_ms": 1000,
-		},
-		"source_info": map[string]interface{}{
-			"source": "FILE_UPLOAD",
 		},
 	}
 
@@ -279,8 +295,7 @@ func (p *TikTokPost) createVideoPost(ctx context.Context, content string, media 
 	// Parse response
 	var response struct {
 		Data struct {
-			VideoID string `json:"video_id"`
-			PostID  string `json:"post_id"`
+			PublishID string `json:"publish_id"`
 		} `json:"data"`
 		Error struct {
 			Code    string `json:"code"`
@@ -296,23 +311,18 @@ func (p *TikTokPost) createVideoPost(ctx context.Context, content string, media 
 		return "", fmt.Errorf("TikTok API error: %s (code: %s)", response.Error.Message, response.Error.Code)
 	}
 
-	// Return post ID
-	if response.Data.PostID != "" {
-		return response.Data.PostID, nil
+	// Return publish ID
+	if response.Data.PublishID != "" {
+		return response.Data.PublishID, nil
 	}
 
-	// Fallback to video ID if post ID not available
-	if response.Data.VideoID != "" {
-		return response.Data.VideoID, nil
-	}
-
-	return "", fmt.Errorf("no post ID returned from TikTok API")
+	return "", fmt.Errorf("no publish ID returned from TikTok API")
 }
 
 // GetStatus retrieves the status of a published post using TikTok Content Posting API v2
 func (p *TikTokPost) GetStatus(ctx context.Context, postID string) (status string, err error) {
 	// TikTok Content Posting API v2 endpoint for getting video/post status
-	apiURL := fmt.Sprintf("https://open.tiktokapis.com/v2/post/video/query/?video_id=%s", postID)
+	apiURL := fmt.Sprintf("https://open.tiktokapis.com/v2/post/publish/status/?publish_id=%s", postID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
@@ -345,9 +355,8 @@ func (p *TikTokPost) GetStatus(ctx context.Context, postID string) (status strin
 	// Parse response
 	var response struct {
 		Data struct {
-			VideoID      string `json:"video_id"`
-			VideoStatus  string `json:"video_status"`
-			PostStatus   string `json:"post_status"`
+			PublishID    string `json:"publish_id"`
+			Status       string `json:"status"`
 			FailReason   string `json:"fail_reason,omitempty"`
 			PublishTime  int64  `json:"publish_time,omitempty"`
 			ReviewStatus string `json:"review_status,omitempty"`
@@ -367,37 +376,19 @@ func (p *TikTokPost) GetStatus(ctx context.Context, postID string) (status strin
 	}
 
 	// Return status based on TikTok's response
-	if response.Data.PostStatus != "" {
-		switch response.Data.PostStatus {
-		case "PUBLISHED":
-			return string(provider.PostStatusPublished), nil
-		case "PROCESSING":
-			return string(provider.PostStatusPending), nil
-		case "FAILED":
-			if response.Data.FailReason != "" {
-				return string(provider.PostStatusFailed), fmt.Errorf("post failed: %s", response.Data.FailReason)
-			}
-			return string(provider.PostStatusFailed), nil
-		default:
-			return string(provider.PostStatusPending), nil
+	switch response.Data.Status {
+	case "PUBLISHED":
+		return string(provider.PostStatusPublished), nil
+	case "PROCESSING_UPLOAD", "PROCESSING":
+		return string(provider.PostStatusPending), nil
+	case "FAILED":
+		if response.Data.FailReason != "" {
+			return string(provider.PostStatusFailed), fmt.Errorf("post failed: %s", response.Data.FailReason)
 		}
+		return string(provider.PostStatusFailed), nil
+	default:
+		return string(provider.PostStatusPending), nil
 	}
-
-	// Fallback to video status if post status not available
-	if response.Data.VideoStatus != "" {
-		switch response.Data.VideoStatus {
-		case "UPLOADED", "PROCESSING_DONE":
-			return string(provider.PostStatusPublished), nil
-		case "PROCESSING":
-			return string(provider.PostStatusPending), nil
-		case "FAILED":
-			return string(provider.PostStatusFailed), nil
-		default:
-			return string(provider.PostStatusPending), nil
-		}
-	}
-
-	return string(provider.PostStatusPending), nil
 }
 
 // RefreshToken refreshes the access token using TikTok Content Posting API v2
