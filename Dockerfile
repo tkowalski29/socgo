@@ -13,6 +13,12 @@ RUN go mod download
 # Copy source code
 COPY . .
 
+# Install templ for template generation
+RUN go install github.com/a-h/templ/cmd/templ@latest
+
+# Generate templates
+RUN templ generate
+
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o socgo .
 
