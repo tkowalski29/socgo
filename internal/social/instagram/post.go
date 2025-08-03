@@ -222,7 +222,7 @@ func (p *InstagramPost) checkBasicInstagramAccount(ctx context.Context) error {
 	}
 
 	log.Printf("Instagram account info - ID: %s, Username: %s", response.ID, response.Username)
-	
+
 	// If we can access media_count, this is likely a Business or Creator account
 	if response.MediaCount != nil {
 		log.Printf("✅ Instagram Business/Creator account verified - media count: %d", *response.MediaCount)
@@ -233,7 +233,7 @@ func (p *InstagramPost) checkBasicInstagramAccount(ctx context.Context) error {
 	// If we got here without media_count, it might be a personal account
 	log.Printf("⚠️  Could not verify account type - media_count not available")
 	log.Printf("💡 This might be a personal account or access token permissions issue")
-	
+
 	// Since we successfully connected via Facebook Page, assume it's a Business account
 	// The fact that we got the Instagram Business Account ID means it should work
 	log.Printf("✅ Account connected via Facebook Page - assuming Business account")
@@ -246,7 +246,7 @@ func (p *InstagramPost) Publish(ctx context.Context, dbProvider data_database.Pr
 	log.Printf("Instagram Publish called with content: %s", content)
 	log.Printf("🔧 Instagram configuration:")
 	log.Printf("   UserID: %s", p.Config.UserID)
-	
+
 	// Safely log access token prefix
 	tokenPreview := p.Config.AccessToken
 	if len(tokenPreview) > 20 {
@@ -358,14 +358,14 @@ func (p *InstagramPost) createMediaContainer(ctx context.Context, caption string
 			mediaType = "IMAGE"
 		}
 	}
-	
+
 	log.Printf("Determined media type: %s (from MimeType: %s)", mediaType, media.MimeType)
 
 	// Instagram Graph API requires image_url parameter instead of direct file upload
 	// We need to provide a publicly accessible URL to the image
 	// For now, we'll construct a URL based on the file path
 	// This assumes your app serves uploaded files via HTTP
-	
+
 	// Convert local file path to public URL
 	// This is a simplified approach - in production, you might use cloud storage
 	imageURL := p.constructPublicImageURL(media.FilePath)
@@ -375,7 +375,7 @@ func (p *InstagramPost) createMediaContainer(ctx context.Context, caption string
 	data := url.Values{}
 	data.Set("access_token", p.Config.AccessToken)
 	data.Set("media_type", mediaType)
-	
+
 	// Use image_url parameter as required by Instagram API
 	if mediaType == "IMAGE" {
 		data.Set("image_url", imageURL)
@@ -444,7 +444,7 @@ func (p *InstagramPost) createMediaContainer(ctx context.Context, caption string
 func (p *InstagramPost) constructPublicImageURL(filePath string) string {
 	log.Printf("Converting file path to public URL: %s", filePath)
 	log.Printf("BaseURL: %s", p.BaseURL)
-	
+
 	// If filePath already starts with /uploads/, extract just the filename
 	if strings.HasPrefix(filePath, "/uploads/") {
 		filename := strings.TrimPrefix(filePath, "/uploads/")
@@ -452,11 +452,11 @@ func (p *InstagramPost) constructPublicImageURL(filePath string) string {
 		log.Printf("Public URL constructed: %s", publicURL)
 		return publicURL
 	}
-	
+
 	// Extract filename from full path
 	parts := strings.Split(filePath, "/")
 	filename := parts[len(parts)-1]
-	
+
 	// Construct public URL based on your app's base URL
 	publicURL := fmt.Sprintf("%s/uploads/%s", p.BaseURL, filename)
 	log.Printf("Public URL constructed: %s", publicURL)

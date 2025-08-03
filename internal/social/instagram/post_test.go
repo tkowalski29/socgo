@@ -70,7 +70,7 @@ func TestInstagramPost_validateInstagramConfig(t *testing.T) {
 			p := &InstagramPost{
 				Config: tt.config,
 			}
-			
+
 			err := p.validateInstagramConfig()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validateInstagramConfig() error = %v, wantErr %v", err, tt.wantErr)
@@ -315,10 +315,10 @@ func TestInstagramPost_createMediaContainer(t *testing.T) {
 
 	// Create a temporary test file path
 	testFile := "/tmp/test_image.jpg"
-	
+
 	// For this test, we'll mock the file operations
 	// In a real test, you'd create an actual test file
-	
+
 	media := provider.Media{
 		FilePath: testFile,
 		FileName: "test_image.jpg",
@@ -328,12 +328,12 @@ func TestInstagramPost_createMediaContainer(t *testing.T) {
 	// Test that media container creation works when API returns success
 	// In this test, we're mocking a successful API response
 	containerID, err := p.createMediaContainer(context.Background(), "Test caption", media, "")
-	
+
 	// We expect success because the API is mocked to return success
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	
+
 	if containerID != "container_123456" {
 		t.Errorf("Expected container ID 'container_123456', got '%s'", containerID)
 	}

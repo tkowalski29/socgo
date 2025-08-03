@@ -125,7 +125,7 @@ func (p *TikTokPost) validateVideoFile(media provider.Media) error {
 func (p *TikTokPost) initializeVideoUpload(ctx context.Context, content string, media provider.Media) (videoID string, uploadURL string, uploadHeaders map[string]string, err error) {
 	// TikTok Content Posting API v2 endpoint for direct post
 	apiURL := "https://open.tiktokapis.com/v2/post/publish/video/init/"
-	
+
 	// Get file size first
 	fileInfo, err := os.Stat(media.FilePath)
 	if err != nil {
@@ -144,10 +144,10 @@ func (p *TikTokPost) initializeVideoUpload(ctx context.Context, content string, 
 			"privacy_level": "SELF_ONLY",
 		},
 		"source_info": map[string]interface{}{
-			"source":              "FILE_UPLOAD",
-			"video_size":         fileInfo.Size(),
-			"chunk_size":         fileInfo.Size(),
-			"total_chunk_count":  1,
+			"source":            "FILE_UPLOAD",
+			"video_size":        fileInfo.Size(),
+			"chunk_size":        fileInfo.Size(),
+			"total_chunk_count": 1,
 		},
 	}
 
@@ -246,7 +246,7 @@ func (p *TikTokPost) uploadVideoFile(ctx context.Context, uploadURL string, uplo
 
 // createVideoPost creates and publishes the video post using TikTok Content Posting API v2
 func (p *TikTokPost) createVideoPost(ctx context.Context, content string, videoID string) (string, error) {
-	// TikTok Content Posting API v2 endpoint for direct posts  
+	// TikTok Content Posting API v2 endpoint for direct posts
 	apiURL := "https://open.tiktokapis.com/v2/post/publish/video/"
 
 	// Prepare post data using publish_id from initialization

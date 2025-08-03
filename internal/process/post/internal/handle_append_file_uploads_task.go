@@ -26,11 +26,11 @@ func NewHandleFileUploadsTask() data.Task {
 // Execute handles file uploads and saves them to disk
 func (t *HandleFileUploadsTask) Execute(ctx *data.PostContext) error {
 	var media []provider_pkg.Media
-	
+
 	// Check if this is an append operation
 	operation := ctx.Request.FormValue("operation")
 	isAppend := operation == "append"
-	
+
 	// Get files based on operation type
 	var files []*multipart.FileHeader
 	if isAppend {

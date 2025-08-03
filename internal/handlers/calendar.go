@@ -358,13 +358,13 @@ func (h *CalendarHandler) HandleWeekView(w http.ResponseWriter, r *http.Request)
 		var payloadData struct {
 			Content string `json:"content"`
 		}
-		
+
 		// Try to parse as JSON first, if it fails, treat as plain text
 		if err := json.Unmarshal([]byte(job.PayloadData), &payloadData); err != nil {
 			// If it's not JSON, treat as plain text content
 			payloadData.Content = job.PayloadData
 		}
-		
+
 		// Calculate day index more accurately
 		jobDate := job.ScheduledAt.Truncate(24 * time.Hour)
 		startDateTruncated := startDate.Truncate(24 * time.Hour)

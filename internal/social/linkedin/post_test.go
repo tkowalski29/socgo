@@ -51,7 +51,7 @@ func TestLinkedInPost_validateLinkedInConfig(t *testing.T) {
 			p := &LinkedInPost{
 				Config: tt.config,
 			}
-			
+
 			err := p.validateLinkedInConfig()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validateLinkedInConfig() error = %v, wantErr %v", err, tt.wantErr)
@@ -214,12 +214,12 @@ func TestLinkedInPost_Publish_WithMedia(t *testing.T) {
 
 func TestLinkedInPost_GetStatus(t *testing.T) {
 	tests := []struct {
-		name         string
-		postID       string
-		response     string
-		statusCode   int
+		name           string
+		postID         string
+		response       string
+		statusCode     int
 		expectedStatus string
-		wantErr      bool
+		wantErr        bool
 	}{
 		{
 			name:   "published post",
