@@ -39,7 +39,7 @@ jobs:
         tags: |
           type=ref,event=branch
           type=ref,event=pr
-          type=semver,pattern={{version}}
+          type=semver,pattern={{raw}}
           type=semver,pattern={{major}}.{{minor}}
           type=raw,value=latest,enable={{is_default_branch}}
 
@@ -58,7 +58,13 @@ jobs:
       if: github.event_name != 'pull_request'
       run: |
         mkdir -p deployment
-        echo "IMAGE_TAG=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}" > deployment/image-tag.env
+        # Use the raw tag name (with v prefix) for releases
+        if [ "${{ github.event_name }}" = "release" ]; then
+          TAG_NAME="${{ github.event.release.tag_name }}"
+        else
+          TAG_NAME="${{ steps.meta.outputs.version }}"
+        fi
+        echo "IMAGE_TAG=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAG_NAME" > deployment/image-tag.env
         cp docker-compose.prod.yml deployment/
         cp -r deployment-docs deployment/ || true
 
