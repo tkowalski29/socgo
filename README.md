@@ -5,5 +5,6 @@ SocGo to platforma do zarządzania treściami w mediach społecznościowych, obs
 ## ToDo
 
 - [x] facebook post + image
-- [ ] instagram post + image
+- [x] instagram post + image
+- [x] linkedin post + image
 - [ ] tiktok post + image
