@@ -33,6 +33,14 @@ func main() {
 	dbManager := database.NewManager(cfg.Database.DataDir)
 	container.Register("database", dbManager)
 
+	// Initialize default user database
+	log.Println("Initializing default user database...")
+	if _, err := dbManager.GetDB("default_user"); err != nil {
+		log.Printf("Failed to initialize default user database: %v", err)
+	} else {
+		log.Println("Default user database initialized successfully")
+	}
+
 	oauthService := oauth.NewService(dbManager, cfg)
 	container.Register("oauth_service", oauthService)
 

@@ -31,7 +31,7 @@ RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 
 # Create directories for volumes
-RUN mkdir -p /app/data /app/uploads /app/config
+RUN mkdir -p /app/data /app/uploads
 
 # Copy the binary from builder stage
 COPY --from=builder /app/socgo .
