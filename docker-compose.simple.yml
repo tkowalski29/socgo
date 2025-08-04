@@ -2,24 +2,17 @@ version: '3.8'
 
 services:
   socgo:
-    image: ghcr.io/tkowalski/socgo:latest
+    image: ghcr.io/tkowalski29/socgo:v0.0.4
     container_name: socgo-app
     restart: unless-stopped
     ports:
-      - "40378:8081"
+      - "40378:8080"
     volumes:
-      # Configuration - create config directory and place your config.yml there
-      - ./config.yml:/etc/socgo/config.yml:ro
-      # Data volume for application data (database, etc.)
+      - ./config.yml:/app/config.yml:ro
       - socgo_data:/app/data
-      # Uploads volume for user uploaded files
       - socgo_uploads:/app/uploads
-    environment:
-      - SOCGO_CONFIG_PATH=/etc/socgo/config.yml
-      - ENV=production
-      - GIN_MODE=release
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
       interval: 30s
       timeout: 10s
       retries: 3
