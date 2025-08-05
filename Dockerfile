@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.24-alpine AS builder
+FROM --platform=${BUILDPLATFORM:-linux/amd64} golang:1.24-alpine AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN templ generate
 RUN CGO_ENABLED=1 GOOS=linux go build -a -ldflags '-linkmode external -extldflags "-static"' -o socgo .
 
 # Production stage
-FROM alpine:latest
+FROM --platform=${TARGETPLATFORM:-linux/amd64} alpine:latest
 
 # Install ca-certificates for HTTPS requests
 RUN apk --no-cache add ca-certificates tzdata
