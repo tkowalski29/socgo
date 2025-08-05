@@ -6,7 +6,7 @@
 socgo
 main
 __debug_bin*
-.data/*
+data/*
 *_templ.go
 
 # Configuration files with sensitive data

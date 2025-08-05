@@ -3,8 +3,8 @@ FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies for building
-RUN apk add --no-cache git ca-certificates tzdata
+# Install dependencies for building (including CGO for SQLite)
+RUN apk add --no-cache git ca-certificates tzdata gcc musl-dev sqlite-dev
 
 # Copy go mod files and download dependencies
 COPY go.mod go.sum ./
@@ -19,8 +19,8 @@ RUN go install github.com/a-h/templ/cmd/templ@latest
 # Generate templates
 RUN templ generate
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o socgo .
+# Build the application with CGO enabled for SQLite
+RUN CGO_ENABLED=1 GOOS=linux go build -a -ldflags '-linkmode external -extldflags "-static"' -o socgo .
 
 # Production stage
 FROM alpine:latest
