@@ -54,24 +54,3 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Generate deployment artifact
-      if: github.event_name != 'pull_request'
-      run: |
-        mkdir -p deployment
-        # Use the raw tag name (with v prefix) for releases
-        if [ "${{ github.event_name }}" = "release" ]; then
-          TAG_NAME="${{ github.event.release.tag_name }}"
-        else
-          TAG_NAME="${{ steps.meta.outputs.version }}"
-        fi
-        echo "IMAGE_TAG=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAG_NAME" > deployment/image-tag.env
-        cp docker-compose.prod.yml deployment/
-        cp -r deployment-docs deployment/ || true
-
-    - name: Upload deployment artifact
-      if: github.event_name != 'pull_request'
-      uses: actions/upload-artifact@v4
-      with:
-        name: deployment-${{ github.sha }}
-        path: deployment/
-        retention-days: 30
